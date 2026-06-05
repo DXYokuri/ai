@@ -18,5 +18,5 @@ The standalone HTML export is generated at `dist/atlas.html`.
 This repository is used as the GitHub archive for the local project workspace:
 
 ```text
-D:\?瓷??餌\瘥挽\uiux\摰?2
+D:\我没有在画画\毕设\uiux\宇宙2
 ```
