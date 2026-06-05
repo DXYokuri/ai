@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { App } from './App';
 
@@ -131,6 +131,45 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByText('AUTHORITY MODE')).toBeTruthy();
       expect(screen.queryByText('MISSION DATABASE')).toBeNull();
+    });
+  });
+
+  it('expands a left detail panel over the planet without removing the surrounding HUD', async () => {
+    render(<App animationDurationMs={0} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /earth/i }));
+
+    const panelTrigger = await screen.findByRole('button', { name: /focus planet info panel/i });
+    fireEvent.click(panelTrigger);
+
+    const expandedPanel = await screen.findByRole('dialog', { name: /planet info expanded panel/i });
+    expect(screen.getAllByText('PLANET INFO')).toHaveLength(2);
+    expect(screen.getByText('MISSION DATABASE')).toBeTruthy();
+    expect(screen.getByLabelText(/earth detail interface/i).className).toContain('has-focused-panel');
+
+    fireEvent.click(expandedPanel);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /planet info expanded panel/i })).toBeNull();
+    });
+  });
+
+  it('shows an eight-planet position chart with the selected planet centered and the sun as an external reference', async () => {
+    render(<App animationDurationMs={0} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /earth/i }));
+
+    const chart = await screen.findByLabelText('Planet position chart');
+    expect(within(chart).getAllByTestId('planet-silhouette')).toHaveLength(8);
+    expect(within(chart).getByLabelText('EARTH position').getAttribute('aria-current')).toBe('true');
+    expect(within(chart).getByLabelText('Sun external reference')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /^sun$/i }));
+
+    await waitFor(() => {
+      expect(within(screen.getByLabelText('Planet position chart')).getByLabelText('Sun external reference').className).toContain(
+        'is-active'
+      );
     });
   });
 });

@@ -187,6 +187,40 @@ describe('SolarAtlasScene quality constraints', () => {
     expect(renderToneSource).toContain('sunOutlineIntensity');
   });
 
+  it('keeps the overview sun outline thin and increases the idle planet drift', () => {
+    expect(source).toContain('new THREE.SphereGeometry(radius * 1.065');
+    expect(source).toContain('Math.sin(elapsed * 0.58 + node.floatPhase) * 0.12');
+    expect(source).toContain('Math.sin(elapsed * 0.22 + node.floatPhase) * 0.04');
+    expect(renderToneSource).toContain('sunOutlineIntensity: 0.2');
+  });
+
+  it('uses responsive overview camera framing for very wide low-height screens', () => {
+    expect(source).toContain('private overviewCameraZ = 15.5;');
+    expect(source).toContain('private overviewCameraY = 1.4;');
+    expect(source).toContain('const compactLandscapeFactor = THREE.MathUtils.clamp');
+    expect(source).toContain('this.overviewCameraZ = THREE.MathUtils.lerp(15.5, 12.8, compactLandscapeFactor);');
+    expect(source).toContain('this.camera.position.set(0, this.overviewCameraY, this.overviewCameraZ);');
+  });
+
+  it('keeps the overview right-side gradient below pure white and narrows the bright region', () => {
+    expect(source).toContain("gradient.addColorStop(0.48, '#020202');");
+    expect(source).toContain("gradient.addColorStop(0.68, '#242424');");
+    expect(source).toContain("gradient.addColorStop(0.88, '#686868');");
+    expect(source).toContain("gradient.addColorStop(1, '#aaaaaa');");
+    expect(source).not.toContain("gradient.addColorStop(1, '#f6f6f6');");
+    expect(styles).toContain('#aaaaaa 100%');
+    expect(styles).not.toContain('#eeeeee 100%');
+  });
+
+  it('adds a flip-focus detail panel and an eight-planet A+C position chart', () => {
+    expect(appSource).toContain('detail-panel-focus-layer');
+    expect(appSource).toContain('PlanetPositionChart');
+    expect(appSource).toContain('Sun external reference');
+    expect(styles).toContain('@keyframes detail-panel-focus-in');
+    expect(styles).toContain('.detail-hud.has-focused-panel');
+    expect(styles).toContain('.planet-position-chart__track');
+  });
+
   it('does not run the global glitch flash over the normal detail planet', () => {
     expect(appSource).toContain("glitchActive && atlasState.mode === 'overview' && !authorityMode");
     expect(styles).toContain('.mode-detail .scanline-pass');

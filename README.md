@@ -21,10 +21,14 @@ Production:
 https://future-ui-solar-system-atlas.vercel.app
 ```
 
+QR code:
+
+![Future UI Solar System Atlas QR](artifacts/qr/future-ui-solar-system-atlas-qr-1200.png)
+
 ## Archive Note
 
 This repository is used as the GitHub archive for the local project workspace:
 
 ```text
-D:\?瓷??餌\瘥挽\uiux\摰?2
+D:\我没有在画画\毕设\uiux\宇宙2
 ```

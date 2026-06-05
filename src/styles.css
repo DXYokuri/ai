@@ -38,7 +38,7 @@ button {
   overflow: hidden;
   background:
     radial-gradient(circle at 24% 49%, rgba(255, 255, 255, 0.08), transparent 23%),
-    linear-gradient(90deg, #000 0%, #020202 42%, #252525 51%, #eeeeee 100%);
+    linear-gradient(90deg, #000 0%, #020202 48%, #242424 68%, #686868 88%, #aaaaaa 100%);
   color: #f6f8fb;
 }
 
@@ -881,6 +881,23 @@ button {
   width: 100%;
 }
 
+.detail-hud.has-focused-panel::before {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  content: "";
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.08) 48%, transparent 72%);
+  animation: detail-focus-scrim-in 480ms ease both;
+}
+
+.detail-hud.has-focused-panel .detail-hud__left > .hud-panel,
+.detail-hud.has-focused-panel .detail-hud__right > .hud-panel,
+.detail-hud.has-focused-panel .detail-lock {
+  opacity: 0.24;
+  filter: grayscale(0.72) brightness(0.58);
+}
+
 .hud-panel {
   position: relative;
   min-height: 118px;
@@ -894,6 +911,74 @@ button {
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.025),
     0 18px 42px rgba(0, 0, 0, 0.18);
+  transition:
+    opacity 420ms ease,
+    filter 420ms ease,
+    border-color 260ms ease,
+    background 260ms ease;
+}
+
+.hud-panel.is-focusable {
+  cursor: pointer;
+}
+
+.hud-panel.is-focusable:hover,
+.hud-panel.is-focusable:focus-visible {
+  border-color: rgba(255, 255, 255, 0.34);
+  outline: none;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.018)),
+    rgba(0, 0, 0, 0.28);
+}
+
+.detail-panel-focus-layer {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  top: 50%;
+  width: clamp(340px, 38vw, 590px);
+  min-height: clamp(220px, 34vh, 350px);
+  pointer-events: auto;
+  perspective: 1200px;
+  transform: translate(-50%, -50%);
+}
+
+.detail-panel-focus-layer .hud-panel.is-expanded {
+  display: grid;
+  min-height: inherit;
+  padding: clamp(18px, 2vw, 28px);
+  align-content: center;
+  border-color: rgba(255, 255, 255, 0.38);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.018)),
+    rgba(0, 0, 0, 0.58);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.055),
+    0 28px 80px rgba(0, 0, 0, 0.46);
+  animation: detail-panel-focus-in 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center center;
+}
+
+.detail-panel-focus-layer .hud-panel.is-expanded header {
+  height: 34px;
+  font-size: 0.76rem;
+}
+
+.detail-panel-focus-layer .hud-panel.is-expanded .hud-panel__body {
+  padding-top: clamp(20px, 3vh, 34px);
+}
+
+.detail-panel-focus-layer .planet-title strong {
+  font-size: clamp(2.6rem, 6vw, 5.8rem);
+}
+
+.detail-panel-focus-layer .metric-rows {
+  gap: clamp(13px, 2vh, 20px);
+}
+
+.detail-panel-focus-layer .metric-rows dt,
+.detail-panel-focus-layer .metric-rows dd {
+  font-size: clamp(0.7rem, 1vw, 0.92rem);
 }
 
 .hud-panel::before {
@@ -978,6 +1063,9 @@ button {
   align-self: stretch;
   min-width: 0;
   pointer-events: none;
+  transition:
+    opacity 420ms ease,
+    filter 420ms ease;
 }
 
 .target-label {
@@ -1098,23 +1186,138 @@ button {
   transform: rotate(45deg);
 }
 
-.data-stream {
+.planet-position-chart {
+  position: relative;
+  height: 76px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.planet-position-chart__axis {
+  position: absolute;
+  left: 16px;
+  right: 4px;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.38), transparent);
+}
+
+.planet-position-chart__axis::before {
+  position: absolute;
+  left: 50%;
+  top: -27px;
+  width: 1px;
+  height: 54px;
+  content: "";
+  background: linear-gradient(transparent, rgba(255, 255, 255, 0.54), transparent);
+}
+
+.planet-position-chart__sun-reference {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  top: 50%;
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 5px;
+  gap: 3px;
+  justify-items: center;
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 0.42rem;
+  transform: translateY(-50%);
+  transition:
+    color 480ms ease,
+    filter 480ms ease,
+    opacity 480ms ease;
 }
 
-.data-stream i {
-  height: 2px;
-  background: rgba(255, 255, 255, 0.36);
+.planet-position-chart__sun-reference i {
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(255, 244, 194, 0.42);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 4px rgba(255, 244, 194, 0.035),
+    0 0 8px rgba(255, 244, 194, 0.1);
 }
 
-.data-stream i:nth-child(3n) {
-  opacity: 0.22;
+.planet-position-chart__sun-reference.is-active {
+  color: rgba(255, 244, 194, 0.94);
+  filter: brightness(1.45);
 }
 
-.data-stream i:nth-child(5n) {
-  background: rgba(168, 220, 255, 0.52);
+.planet-position-chart__track {
+  position: absolute;
+  inset: 0 0 0 24px;
+}
+
+.planet-silhouette {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: var(--planet-size);
+  height: var(--planet-size);
+  place-items: center;
+  opacity: 0.34;
+  transform: translate(-50%, -50%) translateX(var(--planet-offset));
+  transition:
+    transform 760ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 480ms ease,
+    filter 480ms ease;
+}
+
+.planet-silhouette i {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, var(--planet-accent) 52%, rgba(255, 255, 255, 0.2));
+  border-radius: 50%;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.025) 46%, rgba(0, 0, 0, 0.5)),
+    color-mix(in srgb, var(--planet-accent) 16%, transparent);
+}
+
+.planet-silhouette span {
+  position: absolute;
+  top: calc(100% + 5px);
+  display: none;
+  width: 54px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.42rem;
+  text-align: center;
+}
+
+.planet-silhouette.is-active {
+  z-index: 2;
+  opacity: 1;
+  filter: brightness(1.25);
+}
+
+.planet-silhouette.is-active span {
+  display: block;
+}
+
+.planet-silhouette--jupiter i {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.18) 0 2px, rgba(0, 0, 0, 0.28) 2px 4px),
+    color-mix(in srgb, var(--planet-accent) 18%, transparent);
+}
+
+.planet-silhouette--saturn i::after {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160%;
+  height: 42%;
+  content: "";
+  border: 1px solid color-mix(in srgb, var(--planet-accent) 54%, transparent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-8deg);
+}
+
+.planet-silhouette--uranus i {
+  transform: rotate(12deg);
 }
 
 .detail-footer {
@@ -1215,6 +1418,33 @@ button {
     opacity: 0;
     transform: translateY(8px);
     filter: blur(3px);
+  }
+}
+
+@keyframes detail-focus-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes detail-panel-focus-in {
+  0% {
+    opacity: 0;
+    filter: blur(7px);
+    transform: scale(0.58) rotateY(-86deg);
+  }
+  58% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1.025) rotateY(7deg);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1) rotateY(0);
   }
 }
 
@@ -1368,6 +1598,11 @@ button {
 
   .overview-rail {
     bottom: 24px;
+  }
+
+  .detail-panel-focus-layer {
+    width: clamp(300px, 38vw, 500px);
+    min-height: min(54vh, 270px);
   }
 }
 

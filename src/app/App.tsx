@@ -220,17 +220,31 @@ interface DetailHudProps {
 }
 
 function DetailHud({ authorityMode, planet, locked, onBackdropReturn }: DetailHudProps): ReactElement {
+  const [focusedPanel, setFocusedPanel] = useState<FocusedPanelKey | null>(null);
+
+  useEffect(() => {
+    setFocusedPanel(null);
+  }, [authorityMode, planet.key]);
+
   return (
     <section
-      className={`detail-hud ${locked ? 'is-locked' : ''} ${authorityMode ? 'is-authority' : ''}`}
+      className={`detail-hud ${locked ? 'is-locked' : ''} ${authorityMode ? 'is-authority' : ''} ${focusedPanel ? 'has-focused-panel' : ''}`}
       aria-label={`${planet.label} detail interface`}
       onClick={(event) => {
         if (event.target === event.currentTarget) {
-          onBackdropReturn();
+          if (focusedPanel) {
+            setFocusedPanel(null);
+          } else {
+            onBackdropReturn();
+          }
         }
       }}
     >
-      {authorityMode ? <AuthorityHud planet={planet} /> : <StandardDetailHud planet={planet} />}
+      {authorityMode ? (
+        <AuthorityHud planet={planet} />
+      ) : (
+        <StandardDetailHud focusedPanel={focusedPanel} onFocusPanel={setFocusedPanel} planet={planet} />
+      )}
 
       <footer className="detail-footer">
         {authorityMode ? (
@@ -277,28 +291,63 @@ function AuthorityToggle({ active, onToggle }: AuthorityToggleProps): ReactEleme
 }
 
 interface StandardDetailHudProps {
+  focusedPanel: FocusedPanelKey | null;
+  onFocusPanel: (panel: FocusedPanelKey | null) => void;
   planet: ReturnType<typeof getPlanet>;
 }
 
-function StandardDetailHud({ planet }: StandardDetailHudProps): ReactElement {
+type FocusedPanelKey = 'planet-info' | 'statistics' | 'environment';
+
+function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetailHudProps): ReactElement {
+  const panelDefinitions: Array<{
+    key: FocusedPanelKey;
+    icon: ReactNode;
+    renderContent: () => ReactNode;
+    title: string;
+  }> = [
+    {
+      key: 'planet-info',
+      icon: <Shield size={15} />,
+      title: 'PLANET INFO',
+      renderContent: () => (
+        <div className="planet-title">
+          <small>PLANETARY NODE</small>
+          <strong>{planet.label}</strong>
+          <span>
+            {planet.key.toUpperCase()}-{planet.order.toString().padStart(2, '0')}/ATLAS
+          </span>
+        </div>
+      )
+    },
+    {
+      key: 'statistics',
+      icon: <Activity size={15} />,
+      title: 'STATISTICS',
+      renderContent: () => <MetricRows data={planet.stats} />
+    },
+    {
+      key: 'environment',
+      icon: <Signal size={15} />,
+      title: 'ENVIRONMENT',
+      renderContent: () => <MetricRows data={planet.environment} />
+    }
+  ];
+  const activePanel = panelDefinitions.find((panel) => panel.key === focusedPanel) ?? null;
+
   return (
     <>
       <div className="detail-hud__left">
-        <HudPanel icon={<Shield size={15} />} title="PLANET INFO">
-          <div className="planet-title">
-            <small>PLANETARY NODE</small>
-            <strong>{planet.label}</strong>
-            <span>{planet.key.toUpperCase()}-{planet.order.toString().padStart(2, '0')}/ATLAS</span>
-          </div>
-        </HudPanel>
-
-        <HudPanel icon={<Activity size={15} />} title="STATISTICS">
-          <MetricRows data={planet.stats} />
-        </HudPanel>
-
-        <HudPanel icon={<Signal size={15} />} title="ENVIRONMENT">
-          <MetricRows data={planet.environment} />
-        </HudPanel>
+        {panelDefinitions.map((panel) => (
+          <HudPanel
+            focusable
+            icon={panel.icon}
+            key={panel.key}
+            onFocus={() => onFocusPanel(panel.key)}
+            title={panel.title}
+          >
+            {panel.renderContent()}
+          </HudPanel>
+        ))}
       </div>
 
       <div className="detail-lock">
@@ -333,15 +382,83 @@ function StandardDetailHud({ planet }: StandardDetailHudProps): ReactElement {
           </ul>
         </HudPanel>
 
-        <HudPanel icon={<Satellite size={15} />} title="DATA STREAM">
-          <div className="data-stream" aria-hidden="true">
-            {Array.from({ length: 48 }, (_, index) => (
-              <i key={index} />
-            ))}
-          </div>
+        <HudPanel icon={<Satellite size={15} />} title="ORBIT POSITION">
+          <PlanetPositionChart planetKey={planet.key} />
         </HudPanel>
       </div>
+
+      {activePanel ? (
+        <div
+          aria-label={`${activePanel.title} expanded panel`}
+          className="detail-panel-focus-layer"
+          onClick={() => onFocusPanel(null)}
+          role="dialog"
+        >
+          <HudPanel expanded icon={activePanel.icon} title={activePanel.title}>
+            {activePanel.renderContent()}
+          </HudPanel>
+        </div>
+      ) : null}
     </>
+  );
+}
+
+interface PlanetPositionChartProps {
+  planetKey: PlanetKey;
+}
+
+const positionChartSizes: Record<Exclude<PlanetKey, 'sun'>, number> = {
+  mercury: 8,
+  venus: 13,
+  earth: 14,
+  mars: 10,
+  jupiter: 23,
+  saturn: 20,
+  uranus: 16,
+  neptune: 15
+};
+
+function PlanetPositionChart({ planetKey }: PlanetPositionChartProps): ReactElement {
+  const orbitalPlanets = planets.filter((planet): planet is typeof planet & { key: Exclude<PlanetKey, 'sun'> } => planet.key !== 'sun');
+  const selectedIndex = planetKey === 'sun' ? 3.5 : orbitalPlanets.findIndex((planet) => planet.key === planetKey);
+
+  return (
+    <div aria-label="Planet position chart" className="planet-position-chart">
+      <div
+        aria-label="Sun external reference"
+        className={`planet-position-chart__sun-reference ${planetKey === 'sun' ? 'is-active' : ''}`}
+      >
+        <i />
+        <span>SUN</span>
+      </div>
+      <div className="planet-position-chart__axis" aria-hidden="true" />
+      <div className="planet-position-chart__track">
+        {orbitalPlanets.map((planet, index) => {
+          const active = planet.key === planetKey;
+          const offset = (index - selectedIndex) * 26;
+
+          return (
+            <div
+              aria-current={active ? 'true' : undefined}
+              aria-label={`${planet.label} position`}
+              className={`planet-silhouette planet-silhouette--${planet.key} ${active ? 'is-active' : ''}`}
+              data-testid="planet-silhouette"
+              key={planet.key}
+              style={
+                {
+                  '--planet-accent': planet.accent,
+                  '--planet-offset': `${offset}px`,
+                  '--planet-size': `${positionChartSizes[planet.key]}px`
+                } as CSSProperties
+              }
+            >
+              <i />
+              <span>{planet.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -453,13 +570,39 @@ function AuthorityHud({ planet }: AuthorityHudProps): ReactElement {
 
 interface HudPanelProps {
   children: ReactNode;
+  expanded?: boolean;
+  focusable?: boolean;
   icon: ReactNode;
+  onFocus?: () => void;
   title: string;
 }
 
-function HudPanel({ children, icon, title }: HudPanelProps): ReactElement {
+function HudPanel({ children, expanded = false, focusable = false, icon, onFocus, title }: HudPanelProps): ReactElement {
   return (
-    <article className="hud-panel">
+    <article
+      aria-label={focusable ? `Focus ${title} panel` : undefined}
+      className={`hud-panel ${focusable ? 'is-focusable' : ''} ${expanded ? 'is-expanded' : ''}`}
+      onClick={
+        focusable
+          ? (event) => {
+              event.stopPropagation();
+              onFocus?.();
+            }
+          : undefined
+      }
+      onKeyDown={
+        focusable
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onFocus?.();
+              }
+            }
+          : undefined
+      }
+      role={focusable ? 'button' : undefined}
+      tabIndex={focusable ? 0 : undefined}
+    >
       <header>
         {icon}
         <span>{title}</span>

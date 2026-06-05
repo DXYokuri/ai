@@ -300,6 +300,8 @@ export class SolarAtlasScene {
   private authorityActive = false;
   private authorityTextureKey: PlanetKey | null = null;
   private selectedPlanet: PlanetKey | null = null;
+  private overviewCameraZ = 15.5;
+  private overviewCameraY = 1.4;
   private transitionTimeline: gsap.core.Timeline | null = null;
   private authorityTimeline: gsap.core.Timeline | null = null;
 
@@ -309,7 +311,7 @@ export class SolarAtlasScene {
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2(0x050506, 0.018);
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-    this.camera.position.set(0, 1.4, 15.5);
+    this.camera.position.set(0, this.overviewCameraY, this.overviewCameraZ);
     this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({
@@ -450,10 +452,10 @@ export class SolarAtlasScene {
     if (gradientContext) {
       const gradient = gradientContext.createLinearGradient(0, 0, gradientCanvas.width, 0);
       gradient.addColorStop(0, '#000000');
-      gradient.addColorStop(0.42, '#020202');
-      gradient.addColorStop(0.56, '#303030');
-      gradient.addColorStop(0.74, '#d7d7d7');
-      gradient.addColorStop(1, '#f6f6f6');
+      gradient.addColorStop(0.48, '#020202');
+      gradient.addColorStop(0.68, '#242424');
+      gradient.addColorStop(0.88, '#686868');
+      gradient.addColorStop(1, '#aaaaaa');
       gradientContext.fillStyle = gradient;
       gradientContext.fillRect(0, 0, gradientCanvas.width, gradientCanvas.height);
 
@@ -854,7 +856,7 @@ export class SolarAtlasScene {
 
   private createSunOutline(radius: number, planet: PlanetRecord): THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> {
     const sunOutline = new THREE.Mesh(
-      new THREE.SphereGeometry(radius * 1.16, 96, 64),
+      new THREE.SphereGeometry(radius * 1.065, 96, 64),
       new THREE.ShaderMaterial({
         vertexShader: atmosphereVertex,
         fragmentShader: atmosphereFragment,
@@ -1186,7 +1188,11 @@ gl_FragColor.rgb *= atlasShade;
     if (this.backgroundMaterial) {
       this.transitionTimeline.to(this.backgroundMaterial, { opacity: 0.95, duration: 1.1 }, 0);
     }
-    this.transitionTimeline.to(this.camera.position, { z: 15.5, y: 1.4, duration: 1.1 }, 0);
+    this.transitionTimeline.to(
+      this.camera.position,
+      { z: this.overviewCameraZ, y: this.overviewCameraY, duration: 1.1 },
+      0
+    );
     this.transitionTimeline.to(this.ambientGroup.rotation, { y: 0, duration: 1.1 }, 0);
 
     for (const node of this.planetNodes.values()) {
@@ -1220,7 +1226,7 @@ gl_FragColor.rgb *= atlasShade;
       this.applyNodeVisibility(node, 1);
     }
 
-    this.camera.position.set(0, 1.4, 15.5);
+    this.camera.position.set(0, this.overviewCameraY, this.overviewCameraZ);
     if (this.backgroundMaterial) {
       this.backgroundMaterial.opacity = 0.95;
     }
@@ -1646,11 +1652,23 @@ gl_FragColor.rgb *= atlasShade;
     const bounds = this.container.getBoundingClientRect();
     const width = Math.max(bounds.width, 1);
     const height = Math.max(bounds.height, 1);
+    const compactLandscapeFactor = THREE.MathUtils.clamp(
+      (720 - height) / 360 + Math.max(0, width / height - 2.2) * 0.22,
+      0,
+      1
+    );
+
+    this.overviewCameraZ = THREE.MathUtils.lerp(15.5, 12.8, compactLandscapeFactor);
+    this.overviewCameraY = THREE.MathUtils.lerp(1.4, 0.86, compactLandscapeFactor);
 
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
     this.composer.setSize(width, height);
+
+    if (this.currentMode === 'overview') {
+      this.camera.position.set(0, this.overviewCameraY, this.overviewCameraZ);
+    }
   }
 
   private handlePointerDown = (event: PointerEvent): void => {
@@ -1682,8 +1700,8 @@ gl_FragColor.rgb *= atlasShade;
       }
 
       if (this.currentMode === 'overview') {
-        node.group.position.y = node.basePosition.y + Math.sin(elapsed * 0.58 + node.floatPhase) * 0.075;
-        node.group.position.x = node.basePosition.x + Math.sin(elapsed * 0.22 + node.floatPhase) * 0.025;
+        node.group.position.y = node.basePosition.y + Math.sin(elapsed * 0.58 + node.floatPhase) * 0.12;
+        node.group.position.x = node.basePosition.x + Math.sin(elapsed * 0.22 + node.floatPhase) * 0.04;
       }
     }
 

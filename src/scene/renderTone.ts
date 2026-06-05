@@ -23,7 +23,7 @@ export const renderTone = {
   },
   atmosphere: {
     sunIntensity: 0.18,
-    sunOutlineIntensity: 0.32,
+    sunOutlineIntensity: 0.2,
     planetIntensity: 0.34
   },
   surface: {

@@ -179,6 +179,24 @@ try {
     screenshot: await capture(page, 'desktop-detail')
   };
 
+  const positionChart = page.getByLabel('Planet position chart');
+  const earthPosition = positionChart.getByLabel('EARTH position');
+  const positionChartState = {
+    exists: (await positionChart.count()) === 1,
+    silhouetteCount: await positionChart.locator('[data-testid="planet-silhouette"]').count(),
+    earthCentered: (await earthPosition.getAttribute('aria-current')) === 'true',
+    hasSunReference: (await positionChart.getByLabel('Sun external reference').count()) === 1
+  };
+
+  await page.getByRole('button', { name: 'Focus PLANET INFO panel', exact: true }).click();
+  await page.getByRole('dialog', { name: 'PLANET INFO expanded panel', exact: true }).waitFor({ state: 'visible' });
+  const panelFocus = {
+    expandedCount: await page.getByText('PLANET INFO', { exact: true }).count(),
+    hasFocusedClass: await page.locator('.detail-hud').evaluate((element) => element.classList.contains('has-focused-panel')),
+    screenshot: await capture(page, 'desktop-panel-focus')
+  };
+  await page.getByRole('dialog', { name: 'PLANET INFO expanded panel', exact: true }).click();
+
   await page.keyboard.press('Escape');
   await page.waitForTimeout(350);
   await page.getByRole('button', { name: 'Enter authority mode', exact: true }).click({ force: true });
@@ -258,6 +276,8 @@ try {
     desktop,
     planetClickDetail,
     detail,
+    positionChartState,
+    panelFocus,
     authorityMode,
     authorityRailSwitch,
     authorityDirectReturn,
@@ -274,6 +294,15 @@ try {
       desktopVisualNonBlank: desktop.screenshot.uniqueColorBuckets > 20 && desktop.screenshot.luminanceRange > 80,
       planetMeshClickOpened: planetClickDetail.summary.hasMissionDatabase,
       detailOpened: detail.summary.hasMissionDatabase,
+      positionChartTracksSelection:
+        positionChartState.exists &&
+        positionChartState.silhouetteCount === 8 &&
+        positionChartState.earthCentered &&
+        positionChartState.hasSunReference,
+      panelFocusOpens:
+        panelFocus.expandedCount === 2 &&
+        panelFocus.hasFocusedClass &&
+        panelFocus.screenshot.uniqueColorBuckets > 20,
       authorityModeOpens:
         authorityMode.summary.hasAuthorityMode &&
         authorityMode.summary.hasAccessGranted &&
