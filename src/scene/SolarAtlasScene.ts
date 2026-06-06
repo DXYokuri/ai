@@ -11,7 +11,7 @@ import { createRenderPlan } from './renderPlan';
 import { renderTone } from './renderTone';
 
 interface SceneSyncState {
-  authorityMode: boolean;
+  queueMode: boolean;
   mode: AtlasMode;
   selectedPlanet: PlanetKey | null;
 }
@@ -30,80 +30,6 @@ interface PlanetNode {
   floatPhase: number;
   rotationSpeed: number;
 }
-
-interface AuthorityPlanetProfile {
-  lightCenter: [number, number];
-  lightScale: [number, number];
-  shadowBias: number;
-  brightness: number;
-  guideSeed: number;
-}
-
-const authorityPlanetProfiles: Record<PlanetKey, AuthorityPlanetProfile> = {
-  sun: {
-    lightCenter: [0.62, 0.42],
-    lightScale: [0.42, 0.64],
-    shadowBias: -0.08,
-    brightness: 0.52,
-    guideSeed: 119
-  },
-  mercury: {
-    lightCenter: [0.56, 0.46],
-    lightScale: [0.46, 0.72],
-    shadowBias: 0.02,
-    brightness: 0.62,
-    guideSeed: 211
-  },
-  venus: {
-    lightCenter: [0.6, 0.48],
-    lightScale: [0.5, 0.68],
-    shadowBias: 0.04,
-    brightness: 0.58,
-    guideSeed: 307
-  },
-  earth: {
-    lightCenter: [0.64, 0.43],
-    lightScale: [0.55, 0.72],
-    shadowBias: 0.08,
-    brightness: 0.66,
-    guideSeed: 401
-  },
-  mars: {
-    lightCenter: [0.58, 0.54],
-    lightScale: [0.5, 0.64],
-    shadowBias: 0.01,
-    brightness: 0.6,
-    guideSeed: 503
-  },
-  jupiter: {
-    lightCenter: [0.66, 0.42],
-    lightScale: [0.62, 0.52],
-    shadowBias: 0.1,
-    brightness: 0.54,
-    guideSeed: 617
-  },
-  saturn: {
-    lightCenter: [0.6, 0.38],
-    lightScale: [0.58, 0.56],
-    shadowBias: 0.06,
-    brightness: 0.56,
-    guideSeed: 719
-  },
-  uranus: {
-    lightCenter: [0.52, 0.48],
-    lightScale: [0.44, 0.76],
-    shadowBias: -0.02,
-    brightness: 0.55,
-    guideSeed: 823
-  },
-  neptune: {
-    lightCenter: [0.57, 0.44],
-    lightScale: [0.5, 0.68],
-    shadowBias: 0.02,
-    brightness: 0.57,
-    guideSeed: 929
-  }
-};
 
 const atmosphereVertex = `
 varying vec3 vNormal;
@@ -133,104 +59,6 @@ void main() {
 }
 `;
 
-const authorityFragmentVertex = `
-attribute vec3 instancePosition;
-attribute vec3 instanceScatter;
-attribute vec2 instanceScale;
-attribute vec2 instanceUvCenter;
-attribute vec2 instanceUvSize;
-attribute float instanceRotation;
-attribute float instanceAlpha;
-attribute float instanceDepth;
-attribute float instanceTint;
-attribute float instanceFloatPhase;
-attribute float instanceMotion;
-
-uniform float uProgress;
-uniform float uTime;
-
-varying vec2 vFragmentUv;
-varying float vFragmentAlpha;
-varying float vFragmentDepth;
-varying float vFragmentTint;
-varying float vCircularClip;
-
-void main() {
-  float motionWeight = uProgress * instanceMotion;
-  float driftPhase = uTime * (0.18 + instanceMotion * 0.12) + instanceFloatPhase;
-  float counterPhase = uTime * (0.14 + instanceMotion * 0.08) + instanceFloatPhase * 1.37;
-  float rotation = instanceRotation + sin(driftPhase * 0.52) * 0.018 * uProgress;
-  float c = cos(rotation);
-  float s = sin(rotation);
-  vec2 local = vec2(
-    position.x * c - position.y * s,
-    position.x * s + position.y * c
-  ) * instanceScale;
-  vec2 planarScatter = instanceScatter.xy * uProgress;
-  vec2 planarDrift = vec2(
-    sin(driftPhase) * 0.012,
-    cos(counterPhase) * 0.01
-  ) * motionWeight;
-  vec3 flatAuthorityPlane = vec3(instancePosition.xy + planarScatter + planarDrift + local, 0.0);
-  float circularClip = length(flatAuthorityPlane.xy / vec2(1.18, 1.08));
-
-  vFragmentUv = instanceUvCenter + (uv - 0.5) * instanceUvSize;
-  vFragmentAlpha = instanceAlpha;
-  vFragmentDepth = abs(instanceDepth);
-  vFragmentTint = instanceTint;
-  vCircularClip = circularClip;
-
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(flatAuthorityPlane, 1.0);
-}
-`;
-
-const authorityFragmentShader = `
-uniform sampler2D planetTexture;
-uniform float uOpacity;
-uniform float uProgress;
-uniform vec2 uAuthorityLightCenter;
-uniform vec2 uAuthorityLightScale;
-uniform float uAuthorityShadowBias;
-uniform float uAuthorityBrightness;
-
-varying vec2 vFragmentUv;
-varying float vFragmentAlpha;
-varying float vFragmentDepth;
-varying float vFragmentTint;
-varying float vCircularClip;
-
-vec4 sampleFragment(vec2 uv, float blur) {
-  vec4 center = texture2D(planetTexture, uv);
-  vec4 xSample = texture2D(planetTexture, uv + vec2(blur, 0.0));
-  vec4 ySample = texture2D(planetTexture, uv + vec2(0.0, blur));
-  return mix(center, (center + xSample + ySample) / 3.0, smoothstep(0.05, 0.55, blur * 240.0));
-}
-
-void main() {
-  float blur = clamp(vFragmentDepth * 0.0018 * uProgress, 0.0, 0.0045);
-  vec4 sampleColor = sampleFragment(vFragmentUv, blur);
-  float luma = dot(sampleColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-  vec2 authorityUv = (vFragmentUv - uAuthorityLightCenter) / max(uAuthorityLightScale, vec2(0.001));
-  float authorityLightMask = 1.0 - smoothstep(0.26, 1.0, length(authorityUv));
-  float diagonalTerminator = smoothstep(
-    -0.18,
-    0.7,
-    (vFragmentUv.x - uAuthorityLightCenter.x) * 1.18 - (vFragmentUv.y - uAuthorityLightCenter.y) * 0.42 + uAuthorityShadowBias
-  );
-  float localTextureSignal = smoothstep(0.06, 0.84, luma);
-  float authorityTone = mix(0.08, 1.08, authorityLightMask * 0.76 + diagonalTerminator * 0.24);
-  authorityTone *= uAuthorityBrightness * mix(0.52, 1.18, localTextureSignal);
-  vec3 monochromeTexture = vec3(pow(luma, 1.12));
-  vec3 recoveredWhite = monochromeTexture * authorityTone;
-  recoveredWhite += vec3(0.035) * authorityLightMask * localTextureSignal;
-  vec3 restrictedRed = mix(recoveredWhite, vec3(1.0, 0.05, 0.025), vFragmentTint * 0.62);
-  float alpha = uOpacity * vFragmentAlpha * smoothstep(0.0, 0.16, luma + 0.09);
-  alpha *= 1.0 - smoothstep(0.96, 1.025, vCircularClip);
-  alpha *= mix(0.72, 1.0, 1.0 - smoothstep(0.45, 1.25, vFragmentDepth));
-  gl_FragColor = vec4(restrictedRed, alpha);
-}
-`;
-
 const lightDirection = new THREE.Vector3(-1.35, 0.58, 0.92).normalize();
 
 function seededRandom(seed: number): () => number {
@@ -240,28 +68,6 @@ function seededRandom(seed: number): () => number {
     value = (value * 1664525 + 1013904223) >>> 0;
     return value / 4294967296;
   };
-}
-
-function createAuthorityFallbackTexture(): THREE.DataTexture {
-  const width = 16;
-  const height = 8;
-  const data = new Uint8Array(width * height * 4);
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const offset = (y * width + x) * 4;
-      const value = 42 + Math.round((x / width) * 128 + Math.sin(y * 1.8) * 22);
-      data[offset] = value;
-      data[offset + 1] = value;
-      data[offset + 2] = value;
-      data[offset + 3] = 255;
-    }
-  }
-
-  const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
-  return texture;
 }
 
 export class SolarAtlasScene {
@@ -276,34 +82,25 @@ export class SolarAtlasScene {
   private readonly pointer = new THREE.Vector2();
   private readonly planetNodes = new Map<PlanetKey, PlanetNode>();
   private readonly pickables: THREE.Object3D[] = [];
-  private readonly planetColorTextures = new Map<PlanetKey, THREE.Texture>();
   private readonly ambientGroup = new THREE.Group();
   private readonly detailGroup = new THREE.Group();
-  private readonly authorityGroup = new THREE.Group();
-  private readonly authorityGuideGroup = new THREE.Group();
-  private readonly authorityMaterials: THREE.Material[] = [];
-  private readonly authorityGuideMaterials: THREE.LineBasicMaterial[] = [];
-  private readonly authorityFallbackTexture = createAuthorityFallbackTexture();
-  private readonly authorityFragmentOpacity = { value: 0 };
-  private readonly authorityFragmentProgress = { value: 0 };
-  private readonly authorityFragmentTime = { value: 0 };
-  private readonly authorityGuideFlip = { value: 0 };
-  private authorityFragmentMaterial: THREE.ShaderMaterial | null = null;
-  private authorityFragmentMesh: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial> | null = null;
-  private authorityDustMaterial: THREE.PointsMaterial | null = null;
+  private readonly queueDomeLight = new THREE.HemisphereLight(
+    0xe7f4ff,
+    0x050608,
+    renderTone.lights.domeDetailIntensity
+  );
   private backgroundMaterial: THREE.MeshBasicMaterial | null = null;
   private readonly clock = new THREE.Clock();
   private resizeObserver: ResizeObserver;
   private animationFrame = 0;
   private currentMode: AtlasMode = 'overview';
-  private currentAuthorityMode = false;
-  private authorityActive = false;
-  private authorityTextureKey: PlanetKey | null = null;
+  private currentQueueMode = false;
+  private queueActive = false;
   private selectedPlanet: PlanetKey | null = null;
   private overviewCameraZ = 15.5;
   private overviewCameraY = 1.4;
   private transitionTimeline: gsap.core.Timeline | null = null;
-  private authorityTimeline: gsap.core.Timeline | null = null;
+  private queueTimeline: gsap.core.Timeline | null = null;
 
   constructor(container: HTMLElement, onSelectPlanet: (planetKey: PlanetKey) => void) {
     this.container = container;
@@ -349,7 +146,6 @@ export class SolarAtlasScene {
     this.addAmbientSystem();
     this.addPlanets();
     this.addDetailSystem();
-    this.addAuthoritySystem();
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(this.container);
@@ -360,13 +156,13 @@ export class SolarAtlasScene {
   }
 
   sync(state: SceneSyncState): void {
-    const nextAuthorityMode = state.authorityMode && state.mode !== 'overview' && Boolean(state.selectedPlanet);
+    const nextQueueMode = state.queueMode && state.mode !== 'overview' && Boolean(state.selectedPlanet);
     const previousSelectedPlanet = this.selectedPlanet;
 
     if (
       state.mode === this.currentMode &&
       state.selectedPlanet === this.selectedPlanet &&
-      nextAuthorityMode === this.currentAuthorityMode
+      nextQueueMode === this.currentQueueMode
     ) {
       return;
     }
@@ -377,37 +173,33 @@ export class SolarAtlasScene {
       this.selectedPlanet = state.selectedPlanet;
     }
 
-    if (state.mode === 'transition-in' && state.selectedPlanet && !this.authorityActive) {
+    if (state.mode === 'transition-in' && state.selectedPlanet && !nextQueueMode) {
       this.focusPlanet(state.selectedPlanet);
     }
 
-    if (state.mode === 'transition-out' && !nextAuthorityMode) {
-      if (this.authorityActive || this.currentAuthorityMode || this.authorityGroup.visible) {
-        this.exitAuthorityModeToOverview();
-      } else {
-        this.setAuthorityMode(false);
-      }
+    if (state.mode === 'transition-out' && !nextQueueMode) {
+      this.setQueueMode(false);
       this.returnToOverview();
     }
 
     if (state.mode === 'overview') {
       this.selectedPlanet = null;
       this.applyOverviewPose();
-      this.currentAuthorityMode = false;
+      this.currentQueueMode = false;
       return;
     }
 
-    if (nextAuthorityMode !== this.currentAuthorityMode || previousSelectedPlanet !== this.selectedPlanet) {
-      this.setAuthorityMode(nextAuthorityMode, previousSelectedPlanet !== this.selectedPlanet, previousSelectedPlanet);
+    if (nextQueueMode !== this.currentQueueMode || previousSelectedPlanet !== this.selectedPlanet) {
+      this.setQueueMode(nextQueueMode, previousSelectedPlanet !== this.selectedPlanet);
     }
 
-    this.currentAuthorityMode = nextAuthorityMode;
+    this.currentQueueMode = nextQueueMode;
   }
 
   dispose(): void {
     window.cancelAnimationFrame(this.animationFrame);
     this.transitionTimeline?.kill();
-    this.authorityTimeline?.kill();
+    this.queueTimeline?.kill();
     this.resizeObserver.disconnect();
     this.renderer.domElement.removeEventListener('pointerdown', this.handlePointerDown);
     this.renderer.dispose();
@@ -441,6 +233,9 @@ export class SolarAtlasScene {
 
     const ambient = new THREE.AmbientLight(0x8da1b7, renderTone.lights.ambientIntensity);
     this.scene.add(ambient);
+
+    this.queueDomeLight.position.set(0, 8, 0);
+    this.scene.add(this.queueDomeLight);
   }
 
   private addAmbientSystem(): void {
@@ -643,194 +438,6 @@ export class SolarAtlasScene {
     }
   }
 
-  private addAuthoritySystem(): void {
-    this.authorityGroup.name = 'authority-flat-spherical-pixel-map';
-    this.authorityGroup.visible = false;
-    this.authorityGroup.position.set(0, 0, 0.08);
-    this.scene.add(this.authorityGroup);
-    this.authorityGuideGroup.name = 'authority-flat-geometric-guides';
-    this.authorityGuideGroup.position.set(0, 0, 0.04);
-    this.authorityGroup.add(this.authorityGuideGroup);
-
-    const random = seededRandom(90210);
-    const gridSize = 72;
-    const maxFragments = gridSize * gridSize;
-    const fragmentPositions = new Float32Array(maxFragments * 3);
-    const fragmentScatter = new Float32Array(maxFragments * 3);
-    const fragmentScales = new Float32Array(maxFragments * 2);
-    const fragmentUvCenters = new Float32Array(maxFragments * 2);
-    const fragmentUvSizes = new Float32Array(maxFragments * 2);
-    const fragmentRotations = new Float32Array(maxFragments);
-    const fragmentAlpha = new Float32Array(maxFragments);
-    const fragmentDepth = new Float32Array(maxFragments);
-    const fragmentTint = new Float32Array(maxFragments);
-    const fragmentFloatPhase = new Float32Array(maxFragments);
-    const fragmentMotion = new Float32Array(maxFragments);
-    let fragmentCount = 0;
-
-    for (let row = 0; row < gridSize; row += 1) {
-      for (let column = 0; column < gridSize; column += 1) {
-        const normalizedX = column / (gridSize - 1) - 0.5;
-        const normalizedY = row / (gridSize - 1) - 0.5;
-        const localX = normalizedX * 2.12 + (random() - 0.5) * 0.012;
-        const localY = -normalizedY * 2.12 + (random() - 0.5) * 0.012;
-        const sphereSilhouette = Math.sqrt((localX * localX) / 1.16 + (localY * localY) / 1.16);
-        const clippedX = Math.max(-0.98, Math.min(0.98, localX / 1.12));
-        const clippedY = Math.max(-0.98, Math.min(0.98, localY / 1.12));
-        const erosion = sphereSilhouette > 0.94 ? 0.18 : sphereSilhouette < 0.32 ? 0.05 : 0.075;
-        const verticalDataTear = localX < -0.78 && localY > -0.55 && localY < 0.72 && random() > 0.78;
-        const signalGap = localX > 0.46 && localY > -0.08 && localY < 0.48 && random() > 0.82;
-
-        if (sphereSilhouette > 1.015 || random() < erosion || verticalDataTear || signalGap) {
-          continue;
-        }
-
-        const index = row * gridSize + column;
-        const edgeWeight = Math.max(0, sphereSilhouette - 0.58) / 0.44;
-        const deconstructed = random() > (sphereSilhouette > 0.76 ? 0.74 : 0.9);
-        const dataBlock = random() > 0.86;
-        const planarPixelBlock = 0.009 + random() * 0.024;
-        const write3 = fragmentCount * 3;
-        const write2 = fragmentCount * 2;
-
-        fragmentPositions[write3] = localX;
-        fragmentPositions[write3 + 1] = localY;
-        fragmentPositions[write3 + 2] = 0;
-        fragmentScatter[write3] = deconstructed
-          ? localX * (0.025 + edgeWeight * 0.085) + (random() - 0.5) * 0.12
-          : (random() - 0.5) * 0.014;
-        fragmentScatter[write3 + 1] = deconstructed
-          ? localY * (0.02 + edgeWeight * 0.065) + (random() - 0.5) * 0.1
-          : (random() - 0.5) * 0.012;
-        fragmentScatter[write3 + 2] = 0;
-
-        const baseWidth = dataBlock ? 0.03 + random() * 0.052 : planarPixelBlock;
-        fragmentScales[write2] = baseWidth * (dataBlock ? 0.86 + random() * 0.42 : 0.82 + random() * 0.26);
-        fragmentScales[write2 + 1] = baseWidth * (dataBlock ? 0.76 + random() * 0.38 : 0.82 + random() * 0.24);
-
-        fragmentUvCenters[write2] = 0.5 + Math.asin(clippedX) / Math.PI;
-        fragmentUvCenters[write2 + 1] = 0.5 - Math.asin(clippedY) / Math.PI;
-        fragmentUvSizes[write2] = 0.012 + random() * 0.052;
-        fragmentUvSizes[write2 + 1] = fragmentUvSizes[write2] * (0.52 + random() * 0.9);
-        fragmentRotations[fragmentCount] = (random() - 0.5) * 0.075;
-        fragmentAlpha[fragmentCount] = 0.52 + random() * 0.48;
-        fragmentDepth[fragmentCount] = sphereSilhouette;
-        fragmentTint[fragmentCount] =
-          index % 137 === 0 || (localX < -0.18 && localX > -0.56 && Math.abs(localY) < 0.42 && random() > 0.94) ? 1 : 0;
-        fragmentFloatPhase[fragmentCount] = random() * Math.PI * 2;
-        fragmentMotion[fragmentCount] = deconstructed ? 0.68 + random() * 0.54 : 0.22 + random() * 0.36;
-        fragmentCount += 1;
-      }
-    }
-
-    const sourcePlane = new THREE.PlaneGeometry(1, 1, 1, 1);
-    const fragmentGeometry = new THREE.InstancedBufferGeometry();
-    fragmentGeometry.setIndex(sourcePlane.index);
-    fragmentGeometry.setAttribute('position', sourcePlane.attributes.position);
-    fragmentGeometry.setAttribute('uv', sourcePlane.attributes.uv);
-    fragmentGeometry.setAttribute(
-      'instancePosition',
-      new THREE.InstancedBufferAttribute(fragmentPositions.slice(0, fragmentCount * 3), 3)
-    );
-    fragmentGeometry.setAttribute(
-      'instanceScatter',
-      new THREE.InstancedBufferAttribute(fragmentScatter.slice(0, fragmentCount * 3), 3)
-    );
-    fragmentGeometry.setAttribute(
-      'instanceScale',
-      new THREE.InstancedBufferAttribute(fragmentScales.slice(0, fragmentCount * 2), 2)
-    );
-    fragmentGeometry.setAttribute(
-      'instanceUvCenter',
-      new THREE.InstancedBufferAttribute(fragmentUvCenters.slice(0, fragmentCount * 2), 2)
-    );
-    fragmentGeometry.setAttribute(
-      'instanceUvSize',
-      new THREE.InstancedBufferAttribute(fragmentUvSizes.slice(0, fragmentCount * 2), 2)
-    );
-    fragmentGeometry.setAttribute(
-      'instanceRotation',
-      new THREE.InstancedBufferAttribute(fragmentRotations.slice(0, fragmentCount), 1)
-    );
-    fragmentGeometry.setAttribute('instanceAlpha', new THREE.InstancedBufferAttribute(fragmentAlpha.slice(0, fragmentCount), 1));
-    fragmentGeometry.setAttribute('instanceDepth', new THREE.InstancedBufferAttribute(fragmentDepth.slice(0, fragmentCount), 1));
-    fragmentGeometry.setAttribute('instanceTint', new THREE.InstancedBufferAttribute(fragmentTint.slice(0, fragmentCount), 1));
-    fragmentGeometry.setAttribute(
-      'instanceFloatPhase',
-      new THREE.InstancedBufferAttribute(fragmentFloatPhase.slice(0, fragmentCount), 1)
-    );
-    fragmentGeometry.setAttribute('instanceMotion', new THREE.InstancedBufferAttribute(fragmentMotion.slice(0, fragmentCount), 1));
-    fragmentGeometry.instanceCount = fragmentCount;
-    sourcePlane.dispose();
-
-    this.authorityFragmentMaterial = new THREE.ShaderMaterial({
-      vertexShader: authorityFragmentVertex,
-      fragmentShader: authorityFragmentShader,
-      uniforms: {
-        planetTexture: { value: this.authorityFallbackTexture },
-        uOpacity: this.authorityFragmentOpacity,
-        uProgress: this.authorityFragmentProgress,
-        uTime: this.authorityFragmentTime,
-        uAuthorityLightCenter: { value: new THREE.Vector2(0.64, 0.43) },
-        uAuthorityLightScale: { value: new THREE.Vector2(0.55, 0.72) },
-        uAuthorityShadowBias: { value: 0.08 },
-        uAuthorityBrightness: { value: 0.66 }
-      },
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
-      side: THREE.FrontSide
-    });
-    this.authorityFragmentMaterial.depthTest = false;
-    const textureFragments: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial> = new THREE.Mesh(
-      fragmentGeometry,
-      this.authorityFragmentMaterial
-    );
-    textureFragments.name = 'authority-texture-fragment-field';
-    textureFragments.userData.basePosition = new THREE.Vector3(0, 0, 0);
-    textureFragments.userData.floatPhase = 0.4;
-    this.authorityFragmentMesh = textureFragments;
-    this.authorityGroup.add(textureFragments);
-
-    const dustGeometry = new THREE.BufferGeometry();
-    const dustCount = 980;
-    const positions = new Float32Array(dustCount * 3);
-    const colors = new Float32Array(dustCount * 3);
-
-    for (let index = 0; index < dustCount; index += 1) {
-      const offset = index * 3;
-      const theta = random() * Math.PI * 2;
-      const radius = 0.18 + random() * 1.42;
-      const flattened = random() > 0.72;
-      positions[offset] = Math.cos(theta) * radius * (flattened ? 1.38 : 1);
-      positions[offset + 1] = Math.sin(theta) * radius * (flattened ? 0.52 : 1);
-      positions[offset + 2] = 0;
-
-      const red = index % 89 === 0;
-      colors[offset] = red ? 1 : 0.76 + random() * 0.24;
-      colors[offset + 1] = red ? 0.1 : colors[offset];
-      colors[offset + 2] = red ? 0.08 : colors[offset];
-    }
-
-    dustGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    dustGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-    const dustMaterial = new THREE.PointsMaterial({
-      size: 0.012,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false
-    });
-    this.authorityDustMaterial = dustMaterial;
-    this.authorityMaterials.push(dustMaterial);
-    const dustPoints = new THREE.Points(dustGeometry, dustMaterial);
-    dustPoints.name = 'authority-data-dust-field';
-    dustPoints.userData.basePosition = new THREE.Vector3(0, 0, 0);
-    dustPoints.userData.floatPhase = 2.8;
-    this.authorityGroup.add(dustPoints);
-  }
-
   private createAtmosphere(radius: number, planet: PlanetRecord): THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> {
     const baseIntensity = planet.key === 'sun' ? renderTone.atmosphere.sunIntensity : renderTone.atmosphere.planetIntensity;
     const atmosphere = new THREE.Mesh(
@@ -989,13 +596,8 @@ gl_FragColor.rgb *= atlasShade;
 
   private loadPlanetTextures(planet: PlanetRecord, material: THREE.MeshStandardMaterial): void {
     this.loadTexture(planet.textures.color, (texture) => {
-      this.planetColorTextures.set(planet.key, texture);
       material.map = texture;
       material.needsUpdate = true;
-
-      if (this.selectedPlanet === planet.key) {
-        this.updateAuthorityTexture(planet.key);
-      }
     });
 
     this.loadTexture(planet.textures.normal, (texture) => {
@@ -1040,84 +642,6 @@ gl_FragColor.rgb *= atlasShade;
       .catch(() => undefined);
   }
 
-  private updateAuthorityTexture(key: PlanetKey | null): void {
-    if (!this.authorityFragmentMaterial || !key) {
-      return;
-    }
-
-    const nodeTexture = this.planetNodes.get(key)?.surface.material.map ?? null;
-    this.authorityFragmentMaterial.uniforms.planetTexture.value =
-      this.planetColorTextures.get(key) ?? nodeTexture ?? this.authorityFallbackTexture;
-    this.applyAuthorityProfile(key);
-    this.buildAuthorityGuidesForPlanet(key);
-    this.authorityTextureKey = key;
-  }
-
-  private applyAuthorityProfile(key: PlanetKey): void {
-    if (!this.authorityFragmentMaterial) {
-      return;
-    }
-
-    const profile = authorityPlanetProfiles[key];
-    this.authorityFragmentMaterial.uniforms.uAuthorityLightCenter.value.set(
-      profile.lightCenter[0],
-      profile.lightCenter[1]
-    );
-    this.authorityFragmentMaterial.uniforms.uAuthorityLightScale.value.set(profile.lightScale[0], profile.lightScale[1]);
-    this.authorityFragmentMaterial.uniforms.uAuthorityShadowBias.value = profile.shadowBias;
-    this.authorityFragmentMaterial.uniforms.uAuthorityBrightness.value = profile.brightness;
-  }
-
-  private buildAuthorityGuidesForPlanet(key: PlanetKey): void {
-    this.authorityGuideGroup.clear();
-    for (const material of this.authorityGuideMaterials) {
-      material.dispose();
-    }
-    this.authorityGuideMaterials.length = 0;
-
-    const profile = authorityPlanetProfiles[key];
-    const random = seededRandom(profile.guideSeed);
-    const guideCount = 7 + (profile.guideSeed % 4);
-
-    for (let index = 0; index < guideCount; index += 1) {
-      const isTriangle = (index + profile.guideSeed) % 3 === 0;
-      const size = 0.11 + random() * 0.22;
-      const material = new THREE.LineBasicMaterial({
-        color: index % 5 === 0 ? 0xff2d2d : 0xffffff,
-        transparent: true,
-        opacity: this.authorityActive ? (index % 5 === 0 ? 0.34 : 0.42) : 0,
-        depthTest: false,
-        depthWrite: false
-      });
-      this.authorityGuideMaterials.push(material);
-
-      let guideGeometry: THREE.BufferGeometry;
-      if (isTriangle) {
-        const triangleShape = new THREE.Shape([
-          new THREE.Vector2(0, size * 0.56),
-          new THREE.Vector2(-size * 0.54, -size * 0.42),
-          new THREE.Vector2(size * 0.54, -size * 0.42)
-        ]);
-        const triangleGeometry = new THREE.ShapeGeometry(triangleShape);
-        guideGeometry = new THREE.EdgesGeometry(triangleGeometry);
-        triangleGeometry.dispose();
-      } else {
-        const squarePlane = new THREE.PlaneGeometry(size, size);
-        guideGeometry = new THREE.EdgesGeometry(squarePlane);
-        squarePlane.dispose();
-      }
-
-      const guideMesh = new THREE.LineSegments(guideGeometry, material);
-      const angle = random() * Math.PI * 2;
-      const radius = 0.76 + random() * 0.74;
-      guideMesh.name = 'authority-geometric-guide';
-      guideMesh.position.set(Math.cos(angle) * radius * 0.82, Math.sin(angle) * radius * 0.72, 0.06);
-      guideMesh.rotation.z = Math.round(random() * 3) * (Math.PI / 2);
-      guideMesh.renderOrder = 21;
-      this.authorityGuideGroup.add(guideMesh);
-    }
-  }
-
   private focusPlanet(key: PlanetKey): void {
     this.transitionTimeline?.kill();
     this.detailGroup.visible = true;
@@ -1128,10 +652,14 @@ gl_FragColor.rgb *= atlasShade;
       return;
     }
 
-    const planet = getPlanet(key);
     const targetRadius = renderTone.layout.detailPlanetRadius;
     const targetScale = targetRadius / target.finalRadius;
     this.transitionTimeline = gsap.timeline({ defaults: { ease: 'power3.inOut' } });
+    this.transitionTimeline.to(
+      this.queueDomeLight,
+      { intensity: renderTone.lights.domeDetailIntensity, duration: 0.82 },
+      0
+    );
     if (this.backgroundMaterial) {
       this.transitionTimeline.to(this.backgroundMaterial, { opacity: 0.1, duration: 0.9 }, 0);
     }
@@ -1183,8 +711,17 @@ gl_FragColor.rgb *= atlasShade;
   }
 
   private returnToOverview(): void {
+    this.queueTimeline?.kill();
+    this.queueTimeline = null;
+    this.queueActive = false;
+    this.currentQueueMode = false;
     this.transitionTimeline?.kill();
     this.transitionTimeline = gsap.timeline({ defaults: { ease: 'power3.inOut' } });
+    this.transitionTimeline.to(
+      this.queueDomeLight,
+      { intensity: renderTone.lights.domeDetailIntensity, duration: 0.9 },
+      0
+    );
     if (this.backgroundMaterial) {
       this.transitionTimeline.to(this.backgroundMaterial, { opacity: 0.95, duration: 1.1 }, 0);
     }
@@ -1218,7 +755,7 @@ gl_FragColor.rgb *= atlasShade;
   }
 
   private applyOverviewPose(): void {
-    this.resetAuthorityModeForOverview();
+    this.resetQueueForOverview();
 
     for (const node of this.planetNodes.values()) {
       node.group.position.copy(node.basePosition);
@@ -1233,143 +770,102 @@ gl_FragColor.rgb *= atlasShade;
     this.hideDetailOrbitLayerImmediately();
   }
 
-  private resetAuthorityModeForOverview(): void {
-    this.authorityTimeline?.kill();
-    this.authorityTimeline = null;
-    this.authorityActive = false;
-    this.currentAuthorityMode = false;
-    this.authorityTextureKey = null;
-    this.authorityFragmentOpacity.value = 0;
-    this.authorityFragmentProgress.value = 0;
-    this.authorityGuideFlip.value = 0;
-    this.authorityGroup.visible = false;
-    this.authorityGroup.rotation.set(0, 0, 0);
-    this.authorityGroup.scale.setScalar(1);
-    this.authorityFragmentMesh?.scale.set(1, 1, 1);
+  private resetQueueForOverview(): void {
+    this.queueTimeline?.kill();
+    this.queueTimeline = null;
+    this.queueActive = false;
+    this.currentQueueMode = false;
+    this.queueDomeLight.intensity = renderTone.lights.domeDetailIntensity;
     this.hideDetailOrbitLayerImmediately();
+  }
 
-    for (const material of this.authorityMaterials) {
-      material.opacity = 0;
+  private setQueueMode(active: boolean, force = false): void {
+    if (active === this.queueActive && !force) {
+      return;
     }
 
-    for (const material of this.authorityGuideMaterials) {
-      material.opacity = 0;
+    this.queueActive = active;
+    this.queueTimeline?.kill();
+    this.queueTimeline = null;
+
+    if (active && this.selectedPlanet) {
+      this.arrangePlanetQueue(this.selectedPlanet);
+      this.hideDetailOrbitLayerForQueue();
+      return;
+    }
+
+    if (!active && this.selectedPlanet && this.currentMode !== 'transition-out') {
+      this.focusPlanet(this.selectedPlanet);
     }
   }
 
-  private setAuthorityMode(active: boolean, force = false, previousPlanet: PlanetKey | null = this.authorityTextureKey): void {
-    if (active === this.authorityActive && !force) {
-      return;
+  private getQueuePose(
+    planet: PlanetRecord,
+    selectedPlanet: PlanetRecord,
+    node: PlanetNode
+  ): { position: THREE.Vector3; scale: number; visibility: number } {
+    const relativeIndex = planet.order - selectedPlanet.order;
+    const distance = Math.abs(relativeIndex);
+
+    if (relativeIndex === 0) {
+      return {
+        position: new THREE.Vector3(0, 0, 0),
+        scale: renderTone.layout.detailPlanetRadius / node.finalRadius,
+        visibility: 1
+      };
     }
 
-    const wasAuthorityActive = this.authorityActive;
-    this.authorityActive = active;
-    this.authorityTimeline?.kill();
-    this.authorityGroup.visible = true;
-    this.bokehPass.enabled = false;
-    this.authorityTimeline = gsap.timeline({ defaults: { ease: 'power2.inOut' } });
+    const targetRadius = Math.max(
+      renderTone.queue.minimumNeighborRadius,
+      renderTone.layout.detailPlanetRadius * (renderTone.queue.neighborRadius - distance * renderTone.queue.radiusFalloff)
+    );
 
-    if (
-      active &&
-      wasAuthorityActive &&
-      force &&
-      this.selectedPlanet &&
-      previousPlanet &&
-      previousPlanet !== this.selectedPlanet
-    ) {
-      this.transitionAuthorityPlanet(previousPlanet, this.selectedPlanet);
-      return;
-    }
+    return {
+      position: new THREE.Vector3(
+        relativeIndex * renderTone.queue.spacingX,
+        -distance * renderTone.queue.spacingY,
+        -distance * renderTone.queue.spacingZ
+      ),
+      scale: targetRadius / node.finalRadius,
+      visibility: Math.max(renderTone.queue.minimumVisibility, renderTone.queue.neighborVisibility - distance * 0.1)
+    };
+  }
 
-    if (active) {
-      this.updateAuthorityTexture(this.selectedPlanet);
-      this.authorityGuideFlip.value = 0;
-      this.authorityGroup.rotation.set(0, 0, 0);
-      this.authorityGroup.scale.setScalar(0.9);
-      this.authorityFragmentMesh?.scale.set(1, 1, 1);
-      this.authorityTimeline.to(this.authorityGroup.scale, { x: 1.08, y: 1.08, z: 1, duration: 1.05 }, 0);
-      this.authorityTimeline.to(this.authorityFragmentOpacity, { value: 0.94, duration: 0.96 }, 0.06);
-      this.authorityTimeline.to(this.authorityFragmentProgress, { value: 1, duration: 1.08 }, 0);
+  private arrangePlanetQueue(selectedKey: PlanetKey, duration = renderTone.queue.transitionDuration): void {
+    const selectedPlanet = getPlanet(selectedKey);
+    this.transitionTimeline?.kill();
+    this.queueTimeline?.kill();
+    this.queueTimeline = gsap.timeline({ defaults: { ease: 'power3.inOut' } });
+    this.queueTimeline.to(this.camera.position, { z: renderTone.queue.cameraZ, y: renderTone.queue.cameraY, duration }, 0);
+    this.queueTimeline.to(
+      this.queueDomeLight,
+      { intensity: renderTone.lights.domeQueueIntensity, duration: duration * 0.9 },
+      0
+    );
+    this.queueTimeline.to(this.ambientGroup.rotation, { y: renderTone.queue.ambientRotationY, duration }, 0);
 
-      for (const material of this.authorityMaterials) {
-        this.authorityTimeline.to(material, { opacity: 0.62, duration: 0.95 }, 0.08);
-      }
-
-      for (const material of this.authorityGuideMaterials) {
-        this.authorityTimeline.to(material, { opacity: material.color.getHex() === 0xff2d2d ? 0.34 : 0.42, duration: 0.95 }, 0.08);
-      }
-
-      for (const node of this.planetNodes.values()) {
-        if (node.key === this.selectedPlanet) {
-          this.tweenSurfaceOpacity(node.surface, 0, 0.78, this.authorityTimeline);
-          this.tweenAtmosphereVisibility(node, 0, 0.78, this.authorityTimeline);
-
-          if (node.cloudLayer) {
-            this.tweenTransparentLayerOpacity(node.cloudLayer.material, 0, 0.78, this.authorityTimeline);
-          }
-
-          if (node.nightLayer) {
-            this.tweenTransparentLayerOpacity(node.nightLayer.material, 0, 0.78, this.authorityTimeline);
-          }
-          continue;
-        }
-
-        this.setNodeVisibility(node, 0.012, 0.78, this.authorityTimeline);
-      }
-
-      this.hideDetailOrbitLayerForAuthority();
-
-      if (this.backgroundMaterial) {
-        this.authorityTimeline.to(this.backgroundMaterial, { opacity: 0.035, duration: 0.82 }, 0);
-      }
-
-      return;
-    }
-
-    if (!active && this.selectedPlanet) {
-      this.focusPlanet(this.selectedPlanet);
-    }
-
-    this.authorityTimeline.to(this.authorityFragmentOpacity, { value: 0, duration: 0.78 }, 0);
-    this.authorityTimeline.to(this.authorityFragmentProgress, { value: 0, duration: 0.9 }, 0);
-
-    for (const material of this.authorityMaterials) {
-      this.authorityTimeline.to(material, { opacity: 0, duration: 0.72 }, 0);
-    }
-
-    for (const material of this.authorityGuideMaterials) {
-      this.authorityTimeline.to(material, { opacity: 0, duration: 0.72 }, 0);
+    if (this.backgroundMaterial) {
+      this.queueTimeline.to(this.backgroundMaterial, { opacity: renderTone.queue.backgroundOpacity, duration }, 0);
     }
 
     for (const node of this.planetNodes.values()) {
-      const opacity = node.key === this.selectedPlanet ? 1 : 0.09;
-      this.setNodeVisibility(node, opacity, 0.9, this.authorityTimeline);
+      const pose = this.getQueuePose(getPlanet(node.key), selectedPlanet, node);
+      this.queueTimeline.to(
+        node.group.position,
+        { x: pose.position.x, y: pose.position.y, z: pose.position.z, duration },
+        0
+      );
+      this.queueTimeline.to(
+        node.group.scale,
+        { x: pose.scale, y: pose.scale, z: pose.scale, duration },
+        0
+      );
+      this.setNodeVisibility(node, pose.visibility, duration, this.queueTimeline);
     }
-
-    this.getDetailMaterials().forEach((material, index) => {
-      const opacity =
-        material.name === 'data-line-material'
-          ? renderTone.detailOverlay.dataLineOpacity
-          : index === 0
-            ? renderTone.detailOverlay.orbitOpacity
-            : renderTone.detailOverlay.scanRingOpacity;
-      this.authorityTimeline?.to(material, { opacity, duration: 0.78 }, 0.1);
-    });
-
-    if (this.backgroundMaterial) {
-      this.authorityTimeline.to(this.backgroundMaterial, { opacity: 0.1, duration: 0.82 }, 0);
-    }
-
-    this.authorityTimeline.call(() => {
-      if (!this.authorityActive) {
-        this.authorityGroup.visible = false;
-        this.authorityTextureKey = null;
-      }
-    });
   }
 
-  private hideDetailOrbitLayerForAuthority(): void {
-    const timeline = this.authorityTimeline;
+  private hideDetailOrbitLayerForQueue(): void {
+    const timeline = this.queueTimeline;
 
     if (!timeline) {
       this.detailGroup.visible = false;
@@ -1377,47 +873,14 @@ gl_FragColor.rgb *= atlasShade;
     }
 
     this.detailGroup.visible = true;
-
     for (const material of this.getDetailMaterials()) {
-      timeline.to(material, { opacity: 0, duration: 0.28 }, 0);
+      timeline.to(material, { opacity: 0, duration: 0.34 }, 0);
     }
-
     timeline.call(() => {
-      if (this.authorityActive) {
+      if (this.queueActive) {
         this.detailGroup.visible = false;
       }
-    }, undefined, 0.3);
-  }
-
-  private exitAuthorityModeToOverview(): void {
-    this.authorityTimeline?.kill();
-    this.authorityActive = false;
-    this.currentAuthorityMode = false;
-    this.hideDetailOrbitLayerImmediately();
-    this.authorityGroup.visible = true;
-    this.bokehPass.enabled = false;
-    this.authorityTimeline = gsap.timeline({ defaults: { ease: 'power2.out' } });
-
-    this.authorityTimeline.to(this.authorityFragmentOpacity, { value: 0, duration: 0.46 }, 0);
-    this.authorityTimeline.to(this.authorityFragmentProgress, { value: 0, duration: 0.62 }, 0);
-    this.authorityTimeline.to(this.authorityGroup.scale, { x: 0.92, y: 0.92, z: 1, duration: 0.56 }, 0);
-
-    for (const material of this.authorityMaterials) {
-      this.authorityTimeline.to(material, { opacity: 0, duration: 0.42 }, 0);
-    }
-
-    for (const material of this.authorityGuideMaterials) {
-      this.authorityTimeline.to(material, { opacity: 0, duration: 0.42 }, 0);
-    }
-
-    this.authorityTimeline.call(() => {
-      if (!this.authorityActive && !this.currentAuthorityMode) {
-        this.authorityGroup.visible = false;
-        this.authorityGroup.scale.setScalar(1);
-        this.authorityTextureKey = null;
-        this.authorityGuideFlip.value = 0;
-      }
-    }, undefined, 0.64);
+    }, undefined, 0.36);
   }
 
   private hideDetailOrbitLayerImmediately(): void {
@@ -1427,39 +890,6 @@ gl_FragColor.rgb *= atlasShade;
       material.opacity = 0;
       material.needsUpdate = true;
     }
-  }
-
-  private transitionAuthorityPlanet(currentPlanet: PlanetKey, nextPlanet: PlanetKey): void {
-    if (!this.authorityTimeline || !this.authorityFragmentMaterial || !this.authorityFragmentMesh) {
-      this.updateAuthorityTexture(nextPlanet);
-      return;
-    }
-
-    const currentOrder = getPlanet(currentPlanet).order;
-    const nextOrder = getPlanet(nextPlanet).order;
-    const direction = nextOrder > currentOrder ? -1 : 1;
-    this.authorityGuideFlip.value = 0;
-    this.authorityFragmentMesh.scale.set(1, 1, 1);
-
-    this.authorityTimeline.to(this.authorityFragmentOpacity, { value: 0.06, duration: 0.36, ease: 'power2.in' }, 0);
-    this.authorityTimeline.to(this.authorityFragmentProgress, { value: 0.68, duration: 0.38, ease: 'power2.inOut' }, 0);
-    this.authorityTimeline.to(this.authorityFragmentMesh.scale, { x: 0.84, y: 0.84, z: 1, duration: 0.38, ease: 'power2.in' }, 0);
-    this.authorityTimeline.to(this.authorityGuideFlip, { value: direction * 0.5, duration: 0.38, ease: 'power2.in' }, 0);
-    this.authorityTimeline.call(() => {
-      this.updateAuthorityTexture(this.selectedPlanet);
-      this.authorityFragmentMesh?.scale.set(0.9, 0.9, 1);
-    }, undefined, 0.38);
-    this.authorityTimeline.to(this.authorityFragmentOpacity, { value: 0.94, duration: 0.58, ease: 'power2.out' }, 0.38);
-    this.authorityTimeline.to(this.authorityFragmentProgress, { value: 1, duration: 0.62, ease: 'power2.out' }, 0.38);
-    this.authorityTimeline.to(this.authorityFragmentMesh.scale, { x: 1, y: 1, z: 1, duration: 0.62, ease: 'power2.out' }, 0.38);
-    this.authorityTimeline.to(this.authorityGuideFlip, { value: direction, duration: 0.42, ease: 'power2.out' }, 0.38);
-    this.authorityTimeline.call(() => {
-      this.authorityGuideFlip.value = 0;
-      this.authorityFragmentMesh?.scale.set(1, 1, 1);
-      this.authorityGuideGroup.children.forEach((guideMesh) => {
-        guideMesh.rotation.y = 0;
-      });
-    }, undefined, 1);
   }
 
   private setNodeVisibility(
@@ -1672,7 +1102,7 @@ gl_FragColor.rgb *= atlasShade;
   }
 
   private handlePointerDown = (event: PointerEvent): void => {
-    if (this.currentMode === 'detail') {
+    if (this.currentMode === 'detail' && !this.queueActive) {
       return;
     }
 
@@ -1706,30 +1136,6 @@ gl_FragColor.rgb *= atlasShade;
     }
 
     this.detailGroup.rotation.z = Math.sin(elapsed * 0.22) * 0.06;
-    if (this.authorityGroup.visible) {
-      this.authorityFragmentTime.value = elapsed;
-      this.authorityGroup.rotation.z = Math.sin(elapsed * 0.1) * 0.006;
-      this.authorityGroup.children.forEach((child) => {
-        const basePosition = child.userData.basePosition as THREE.Vector3 | undefined;
-
-        if (basePosition) {
-          const phase = (child.userData.floatPhase as number | undefined) ?? 0;
-          const isDust = child.name === 'authority-data-dust-field';
-          const xAmplitude = isDust ? 0.018 : 0.008;
-          const yAmplitude = isDust ? 0.014 : 0.006;
-          child.position.x = basePosition.x + Math.sin(elapsed * (isDust ? 0.22 : 0.16) + phase) * xAmplitude;
-          child.position.y = basePosition.y + Math.cos(elapsed * (isDust ? 0.18 : 0.14) + phase) * yAmplitude;
-          child.rotation.z = Math.sin(elapsed * (isDust ? 0.12 : 0.08) + phase) * (isDust ? 0.012 : 0.006);
-        }
-      });
-      this.authorityGuideGroup.children.forEach((guideMesh) => {
-        guideMesh.rotation.y = this.authorityGuideFlip.value * Math.PI;
-
-        if (this.authorityGuideFlip.value === 0) {
-          guideMesh.rotation.y = 0;
-        }
-      });
-    }
     this.ambientGroup.rotation.z = Math.sin(elapsed * 0.035) * 0.015;
     this.camera.lookAt(0, 0, 0);
     this.composer.render();

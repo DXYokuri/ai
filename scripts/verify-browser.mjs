@@ -89,14 +89,47 @@ async function pageSummary(page) {
       hasCanvas: Boolean(canvas),
       buttonCount: document.querySelectorAll('.planet-command').length,
       hasMissionDatabase: document.body.innerText.includes('MISSION DATABASE'),
-      hasAuthorityMode: document.body.innerText.includes('AUTHORITY MODE'),
-      hasAccessGranted: document.body.innerText.includes('ACCESS GRANTED'),
+      hasQueueMode: document.querySelector('.atlas-shell')?.classList.contains('mode-queue') ?? false,
+      hasLegacyGlitchUi:
+        document.body.innerText.includes('AUTHORITY MODE') ||
+        document.body.innerText.includes('ACCESS GRANTED') ||
+        Boolean(document.querySelector('.authority-hud, .glitch-pass')),
       activePlanetLabel: activePlanet?.textContent ?? null,
       targetPlanetLabel: targetPlanet?.textContent ?? null,
       hasRotateLock: rotateLock ? getComputedStyle(rotateLock).display !== 'none' : false,
       experienceDisplay: experience ? getComputedStyle(experience).display : 'missing',
       viteOverlay: Boolean(document.querySelector('.vite-error-overlay')),
       bodyTextLength: document.body.innerText.trim().length
+    };
+  });
+}
+
+async function detailLayoutSummary(page) {
+  return page.evaluate(() => {
+    const toRect = (element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height };
+    };
+    const overlaps = (a, b, gap = 4) =>
+      a.left < b.right + gap && a.right > b.left - gap && a.top < b.bottom + gap && a.bottom > b.top - gap;
+    const panels = Array.from(document.querySelectorAll('.detail-hud__left > .hud-panel, .detail-hud__right > .hud-panel')).map(toRect);
+    const arrowElement = document.querySelector('.queue-toggle');
+    const railElement = document.querySelector('.overview-rail');
+    const footerElement = document.querySelector('.detail-footer');
+    const arrow = arrowElement ? toRect(arrowElement) : null;
+    const rail = railElement ? toRect(railElement) : null;
+    const footer = footerElement ? toRect(footerElement) : null;
+    const pairOverlaps = panels.some((panel, index) => panels.slice(index + 1).some((candidate) => overlaps(panel, candidate)));
+
+    return {
+      panelCount: panels.length,
+      panelsInsideViewport: panels.every(
+        (panel) => panel.left >= 0 && panel.top >= 0 && panel.right <= window.innerWidth && panel.bottom <= window.innerHeight
+      ),
+      pairOverlaps,
+      arrowOverlap: arrow ? panels.some((panel) => overlaps(panel, arrow)) : true,
+      railOverlap: rail ? panels.some((panel) => overlaps(panel, rail)) : true,
+      footerOverlap: footer ? panels.some((panel) => overlaps(panel, footer)) : true
     };
   });
 }
@@ -176,6 +209,7 @@ try {
   await page.waitForTimeout(2400);
   const detail = {
     summary: await pageSummary(page),
+    layout: await detailLayoutSummary(page),
     screenshot: await capture(page, 'desktop-detail')
   };
 
@@ -199,28 +233,40 @@ try {
 
   await page.keyboard.press('Escape');
   await page.waitForTimeout(350);
-  await page.getByRole('button', { name: 'Enter authority mode', exact: true }).click({ force: true });
-  await page.getByText('AUTHORITY MODE', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByRole('button', { name: 'Enter planet queue mode', exact: true }).click({ force: true });
+  await page.locator('.atlas-shell.mode-queue').waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(1400);
-  const authorityMode = {
+  const queueMode = {
     summary: await pageSummary(page),
-    screenshot: await capture(page, 'desktop-authority-mode')
+    screenshot: await capture(page, 'desktop-planet-queue')
+  };
+
+  const canvasBounds = await page.locator('canvas').boundingBox();
+  if (!canvasBounds) {
+    throw new Error('Queue mode canvas bounds are unavailable');
+  }
+  await page.mouse.click(canvasBounds.x + canvasBounds.width * 0.695, canvasBounds.y + canvasBounds.height * 0.52);
+  await page.locator('.target-label strong').filter({ hasText: 'MARS' }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(1400);
+  const queueMeshClick = {
+    summary: await pageSummary(page),
+    screenshot: await capture(page, 'desktop-queue-mesh-click')
   };
 
   await page.getByRole('button', { name: 'JUPITER', exact: true }).click();
   await page.waitForTimeout(2400);
-  const authorityRailSwitch = {
+  const queueRailSwitch = {
     summary: await pageSummary(page),
-    screenshot: await capture(page, 'desktop-authority-rail-switch')
+    screenshot: await capture(page, 'desktop-queue-rail-switch')
   };
 
   await page.keyboard.press('Escape');
-  await page.getByText('AUTHORITY MODE', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
+  await page.locator('.atlas-shell.mode-queue').waitFor({ state: 'hidden', timeout: 5000 });
   await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   await page.waitForTimeout(2400);
-  const authorityDirectReturn = {
+  const queueDirectReturn = {
     summary: await pageSummary(page),
-    screenshot: await capture(page, 'desktop-authority-direct-return')
+    screenshot: await capture(page, 'desktop-queue-direct-return')
   };
 
   await page.getByRole('button', { name: 'JUPITER', exact: true }).click();
@@ -260,6 +306,24 @@ try {
     summary: await pageSummary(page),
     screenshot: await capture(page, 'mobile-landscape')
   };
+  await page.getByRole('button', { name: 'EARTH', exact: true }).click();
+  await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(2400);
+  const mobileLandscapeDetail = {
+    layout: await detailLayoutSummary(page),
+    screenshot: await capture(page, 'mobile-landscape-detail')
+  };
+
+  await page.setViewportSize({ width: 1280, height: 520 });
+  await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  await page.getByRole('button', { name: 'EARTH', exact: true }).click();
+  await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(2400);
+  const wideLowDetail = {
+    layout: await detailLayoutSummary(page),
+    screenshot: await capture(page, 'wide-low-detail')
+  };
 
   const fallbackContext = await browser.newContext({ viewport: { width: 1200, height: 760 } });
   await fallbackContext.route(/\.(jpg|jpeg|png|webp|tif)$/i, (route) => route.abort());
@@ -278,14 +342,17 @@ try {
     detail,
     positionChartState,
     panelFocus,
-    authorityMode,
-    authorityRailSwitch,
-    authorityDirectReturn,
+    queueMode,
+    queueMeshClick,
+    queueRailSwitch,
+    queueDirectReturn,
     detailRailSwitch,
     interruptedReturn,
     returned,
     portrait,
     mobileLandscape,
+    mobileLandscapeDetail,
+    wideLowDetail,
     fallback,
     consoleErrors,
     pageErrors,
@@ -294,6 +361,13 @@ try {
       desktopVisualNonBlank: desktop.screenshot.uniqueColorBuckets > 20 && desktop.screenshot.luminanceRange > 80,
       planetMeshClickOpened: planetClickDetail.summary.hasMissionDatabase,
       detailOpened: detail.summary.hasMissionDatabase,
+      desktopDetailNoOverlap:
+        detail.layout.panelCount === 6 &&
+        detail.layout.panelsInsideViewport &&
+        !detail.layout.pairOverlaps &&
+        !detail.layout.arrowOverlap &&
+        !detail.layout.railOverlap &&
+        !detail.layout.footerOverlap,
       positionChartTracksSelection:
         positionChartState.exists &&
         positionChartState.silhouetteCount === 8 &&
@@ -303,19 +377,26 @@ try {
         panelFocus.expandedCount === 2 &&
         panelFocus.hasFocusedClass &&
         panelFocus.screenshot.uniqueColorBuckets > 20,
-      authorityModeOpens:
-        authorityMode.summary.hasAuthorityMode &&
-        authorityMode.summary.hasAccessGranted &&
-        !authorityMode.summary.hasMissionDatabase,
-      authorityRailSwitches:
-        authorityRailSwitch.summary.hasAuthorityMode &&
-        authorityRailSwitch.summary.activePlanetLabel === 'JUPITER' &&
-        !authorityRailSwitch.summary.hasMissionDatabase,
-      authorityDirectReturnSmooth:
-        !authorityDirectReturn.summary.hasAuthorityMode &&
-        !authorityDirectReturn.summary.hasMissionDatabase &&
-        authorityDirectReturn.summary.buttonCount === 9 &&
-        authorityDirectReturn.screenshot.uniqueColorBuckets > 20,
+      queueModeOpens:
+        queueMode.summary.hasQueueMode &&
+        queueMode.summary.hasMissionDatabase &&
+        !queueMode.summary.hasLegacyGlitchUi &&
+        queueMode.screenshot.uniqueColorBuckets > 20,
+      queueMeshClickSwitches:
+        queueMeshClick.summary.hasQueueMode &&
+        queueMeshClick.summary.activePlanetLabel === 'MARS' &&
+        queueMeshClick.summary.targetPlanetLabel === 'MARS' &&
+        !queueMeshClick.summary.hasLegacyGlitchUi,
+      queueRailSwitches:
+        queueRailSwitch.summary.hasQueueMode &&
+        queueRailSwitch.summary.activePlanetLabel === 'JUPITER' &&
+        queueRailSwitch.summary.targetPlanetLabel === 'JUPITER' &&
+        !queueRailSwitch.summary.hasLegacyGlitchUi,
+      queueDirectReturnSmooth:
+        !queueDirectReturn.summary.hasQueueMode &&
+        !queueDirectReturn.summary.hasMissionDatabase &&
+        queueDirectReturn.summary.buttonCount === 9 &&
+        queueDirectReturn.screenshot.uniqueColorBuckets > 20,
       detailRailSwitches:
         detailRailSwitch.summary.hasMissionDatabase &&
         detailRailSwitch.summary.activePlanetLabel === 'JUPITER' &&
@@ -327,6 +408,20 @@ try {
       escapeReturned: !returned.hasMissionDatabase && returned.buttonCount === 9,
       portraitLocks: portrait.summary.hasRotateLock && portrait.summary.experienceDisplay === 'none',
       landscapeShowsAtlas: !mobileLandscape.summary.hasRotateLock && mobileLandscape.summary.buttonCount === 9,
+      mobileLandscapeDetailNoOverlap:
+        mobileLandscapeDetail.layout.panelCount === 6 &&
+        mobileLandscapeDetail.layout.panelsInsideViewport &&
+        !mobileLandscapeDetail.layout.pairOverlaps &&
+        !mobileLandscapeDetail.layout.arrowOverlap &&
+        !mobileLandscapeDetail.layout.railOverlap &&
+        !mobileLandscapeDetail.layout.footerOverlap,
+      wideLowDetailNoOverlap:
+        wideLowDetail.layout.panelCount === 6 &&
+        wideLowDetail.layout.panelsInsideViewport &&
+        !wideLowDetail.layout.pairOverlaps &&
+        !wideLowDetail.layout.arrowOverlap &&
+        !wideLowDetail.layout.railOverlap &&
+        !wideLowDetail.layout.footerOverlap,
       textureFallbackRenders: fallback.summary.hasCanvas && fallback.screenshot.uniqueColorBuckets > 16
     }
   };

@@ -66,7 +66,7 @@ describe('App', () => {
     });
   });
 
-  it('toggles authority mode from the hidden detail arrow', async () => {
+  it('toggles planet queue mode while keeping the standard detail HUD mounted', async () => {
     render(<App animationDurationMs={0} />);
 
     fireEvent.click(screen.getByRole('button', { name: /earth/i }));
@@ -75,23 +75,23 @@ describe('App', () => {
       expect(screen.getByText('MISSION DATABASE')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /enter authority mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /enter planet queue mode/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('AUTHORITY MODE')).toBeTruthy();
-      expect(screen.getAllByText('ACCESS GRANTED').length).toBeGreaterThan(0);
-      expect(screen.queryByText('PLANET INFO')).toBeNull();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /exit authority mode/i }));
-
-    await waitFor(() => {
+      expect(screen.getByLabelText(/earth detail interface/i).className).toContain('is-queue');
       expect(screen.getByText('PLANET INFO')).toBeTruthy();
       expect(screen.queryByText('AUTHORITY MODE')).toBeNull();
     });
+
+    fireEvent.click(screen.getByRole('button', { name: /exit planet queue mode/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('PLANET INFO')).toBeTruthy();
+      expect(screen.getByLabelText(/earth detail interface/i).className).not.toContain('is-queue');
+    });
   });
 
-  it('exits authority mode to the newly selected planet after an authority rail switch', async () => {
+  it('keeps planet queue mode active while switching planets through the persistent rail', async () => {
     render(<App animationDurationMs={2000} />);
 
     fireEvent.click(screen.getByRole('button', { name: /earth/i }));
@@ -100,23 +100,22 @@ describe('App', () => {
       expect(screen.getByText('MISSION DATABASE')).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /enter authority mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /enter planet queue mode/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('AUTHORITY MODE')).toBeTruthy();
+      expect(screen.getByLabelText(/earth detail interface/i).className).toContain('is-queue');
     });
 
     fireEvent.click(screen.getByRole('button', { name: /jupiter/i }));
-    fireEvent.click(screen.getByRole('button', { name: /exit authority mode/i }));
 
     await waitFor(() => {
       expect(screen.getByText('PLANET INFO')).toBeTruthy();
       expect(screen.getAllByText('JUPITER').length).toBeGreaterThan(0);
-      expect(screen.queryByText('AUTHORITY MODE')).toBeNull();
+      expect(screen.getByLabelText(/jupiter detail interface/i).className).toContain('is-queue');
     });
   });
 
-  it('enters authority mode while the return animation is in progress', async () => {
+  it('enters planet queue mode while the return animation is in progress', async () => {
     render(<App animationDurationMs={2000} />);
 
     fireEvent.click(screen.getByRole('button', { name: /earth/i }));
@@ -126,11 +125,11 @@ describe('App', () => {
     });
 
     fireEvent.keyDown(window, { key: 'Escape' });
-    fireEvent.click(screen.getByRole('button', { name: /enter authority mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /enter planet queue mode/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('AUTHORITY MODE')).toBeTruthy();
-      expect(screen.queryByText('MISSION DATABASE')).toBeNull();
+      expect(screen.getByLabelText(/earth detail interface/i).className).toContain('is-queue');
+      expect(screen.getByText('MISSION DATABASE')).toBeTruthy();
     });
   });
 

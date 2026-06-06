@@ -4,13 +4,13 @@ import type { AtlasMode, PlanetKey } from '../domain/types';
 import { SolarAtlasScene } from './SolarAtlasScene';
 
 interface SolarAtlasStageProps {
-  authorityMode: boolean;
+  queueMode: boolean;
   mode: AtlasMode;
   selectedPlanet: PlanetKey | null;
   onSelectPlanet: (planetKey: PlanetKey) => void;
 }
 
-export function SolarAtlasStage({ authorityMode, mode, selectedPlanet, onSelectPlanet }: SolarAtlasStageProps): ReactElement {
+export function SolarAtlasStage({ queueMode, mode, selectedPlanet, onSelectPlanet }: SolarAtlasStageProps): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<SolarAtlasScene | null>(null);
 
@@ -30,8 +30,8 @@ export function SolarAtlasStage({ authorityMode, mode, selectedPlanet, onSelectP
   }, [onSelectPlanet]);
 
   useEffect(() => {
-    sceneRef.current?.sync({ authorityMode, mode, selectedPlanet });
-  }, [authorityMode, mode, selectedPlanet]);
+    sceneRef.current?.sync({ queueMode, mode, selectedPlanet });
+  }, [queueMode, mode, selectedPlanet]);
 
   return (
     <div className="webgl-stage" ref={containerRef} aria-hidden="true">
