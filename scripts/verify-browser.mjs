@@ -260,13 +260,13 @@ try {
     screenshot: await capture(page, 'desktop-queue-rail-switch')
   };
 
-  await page.keyboard.press('Escape');
+  await page.mouse.click(canvasBounds.x + canvasBounds.width * 0.08, canvasBounds.y + canvasBounds.height * 0.7);
   await page.locator('.atlas-shell.mode-queue').waitFor({ state: 'hidden', timeout: 5000 });
   await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   await page.waitForTimeout(2400);
-  const queueDirectReturn = {
+  const queueBlankReturn = {
     summary: await pageSummary(page),
-    screenshot: await capture(page, 'desktop-queue-direct-return')
+    screenshot: await capture(page, 'desktop-queue-blank-return')
   };
 
   await page.getByRole('button', { name: 'JUPITER', exact: true }).click();
@@ -345,7 +345,7 @@ try {
     queueMode,
     queueMeshClick,
     queueRailSwitch,
-    queueDirectReturn,
+    queueBlankReturn,
     detailRailSwitch,
     interruptedReturn,
     returned,
@@ -392,11 +392,11 @@ try {
         queueRailSwitch.summary.activePlanetLabel === 'JUPITER' &&
         queueRailSwitch.summary.targetPlanetLabel === 'JUPITER' &&
         !queueRailSwitch.summary.hasLegacyGlitchUi,
-      queueDirectReturnSmooth:
-        !queueDirectReturn.summary.hasQueueMode &&
-        !queueDirectReturn.summary.hasMissionDatabase &&
-        queueDirectReturn.summary.buttonCount === 9 &&
-        queueDirectReturn.screenshot.uniqueColorBuckets > 20,
+      queueBlankReturnSmooth:
+        !queueBlankReturn.summary.hasQueueMode &&
+        !queueBlankReturn.summary.hasMissionDatabase &&
+        queueBlankReturn.summary.buttonCount === 9 &&
+        queueBlankReturn.screenshot.uniqueColorBuckets > 20,
       detailRailSwitches:
         detailRailSwitch.summary.hasMissionDatabase &&
         detailRailSwitch.summary.activePlanetLabel === 'JUPITER' &&

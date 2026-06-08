@@ -115,6 +115,15 @@ describe('SolarAtlasScene quality constraints', () => {
     expect(styles).toContain('pointer-events: none;');
   });
 
+  it('returns to overview when queue mode receives a blank canvas click', () => {
+    expect(appSource).toContain('onReturn={handleReturn}');
+    expect(stageSource).toContain('onReturn: () => void');
+    expect(stageSource).toContain('new SolarAtlasScene(container, onSelectPlanet, onReturn)');
+    expect(source).toContain('private readonly onReturn: () => void;');
+    expect(source).toContain('if (this.queueActive && !planetKey) {');
+    expect(source).toContain('this.onReturn();');
+  });
+
   it('adds a dedicated outline light to the overview sun', () => {
     expect(source).toContain('outlineLight?: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;');
     expect(source).toContain('this.createSunOutline(plan.radius, planet)');

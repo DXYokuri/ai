@@ -8,9 +8,10 @@ interface SolarAtlasStageProps {
   mode: AtlasMode;
   selectedPlanet: PlanetKey | null;
   onSelectPlanet: (planetKey: PlanetKey) => void;
+  onReturn: () => void;
 }
 
-export function SolarAtlasStage({ queueMode, mode, selectedPlanet, onSelectPlanet }: SolarAtlasStageProps): ReactElement {
+export function SolarAtlasStage({ queueMode, mode, selectedPlanet, onSelectPlanet, onReturn }: SolarAtlasStageProps): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<SolarAtlasScene | null>(null);
 
@@ -21,13 +22,13 @@ export function SolarAtlasStage({ queueMode, mode, selectedPlanet, onSelectPlane
       return undefined;
     }
 
-    sceneRef.current = new SolarAtlasScene(container, onSelectPlanet);
+    sceneRef.current = new SolarAtlasScene(container, onSelectPlanet, onReturn);
 
     return () => {
       sceneRef.current?.dispose();
       sceneRef.current = null;
     };
-  }, [onSelectPlanet]);
+  }, [onReturn, onSelectPlanet]);
 
   useEffect(() => {
     sceneRef.current?.sync({ queueMode, mode, selectedPlanet });

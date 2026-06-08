@@ -73,6 +73,7 @@ function seededRandom(seed: number): () => number {
 export class SolarAtlasScene {
   private readonly container: HTMLElement;
   private readonly onSelectPlanet: (planetKey: PlanetKey) => void;
+  private readonly onReturn: () => void;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly composer: EffectComposer;
   private readonly bokehPass: BokehPass;
@@ -102,9 +103,10 @@ export class SolarAtlasScene {
   private transitionTimeline: gsap.core.Timeline | null = null;
   private queueTimeline: gsap.core.Timeline | null = null;
 
-  constructor(container: HTMLElement, onSelectPlanet: (planetKey: PlanetKey) => void) {
+  constructor(container: HTMLElement, onSelectPlanet: (planetKey: PlanetKey) => void, onReturn: () => void) {
     this.container = container;
     this.onSelectPlanet = onSelectPlanet;
+    this.onReturn = onReturn;
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2(0x050506, 0.018);
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
@@ -1116,6 +1118,11 @@ gl_FragColor.rgb *= atlasShade;
 
     if (planetKey) {
       this.onSelectPlanet(planetKey);
+      return;
+    }
+
+    if (this.queueActive && !planetKey) {
+      this.onReturn();
     }
   };
 

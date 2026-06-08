@@ -35,12 +35,9 @@ export function App({ animationDurationMs = 2100 }: AppProps): ReactElement {
   );
 
   const handleReturn = useCallback(() => {
-    if (queueMode) {
-      setQueueMode(false);
-    }
-
+    setQueueMode(false);
     setAtlasState((state) => beginReturn(state));
-  }, [queueMode]);
+  }, []);
 
   const handleToggleQueueMode = useCallback(() => {
     const nextActive = !queueMode;
@@ -109,6 +106,7 @@ export function App({ animationDurationMs = 2100 }: AppProps): ReactElement {
           mode={atlasState.mode}
           selectedPlanet={atlasState.selectedPlanet}
           onSelectPlanet={handleSelectPlanet}
+          onReturn={handleReturn}
         />
 
         <OverviewOverlay
