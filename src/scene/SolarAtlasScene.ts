@@ -9,6 +9,7 @@ import { getPlanet, planets } from '../domain/planetData';
 import type { AtlasMode, PlanetKey, PlanetRecord } from '../domain/types';
 import { createRenderPlan } from './renderPlan';
 import { renderTone } from './renderTone';
+import { chooseClosestQueueTarget, type QueuePickTarget } from './queuePicking';
 
 interface SceneSyncState {
   queueMode: boolean;
@@ -1103,6 +1104,36 @@ gl_FragColor.rgb *= atlasShade;
     }
   }
 
+  private findQueuePlanetAtPointer(event: PointerEvent, bounds: DOMRect): PlanetKey | undefined {
+    const pointer = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top
+    };
+    const targets: QueuePickTarget[] = [];
+
+    this.camera.updateMatrixWorld();
+    this.scene.updateMatrixWorld(true);
+
+    for (const node of this.planetNodes.values()) {
+      const center = node.group.getWorldPosition(new THREE.Vector3()).project(this.camera);
+      const edge = node.group.localToWorld(new THREE.Vector3(node.finalRadius, 0, 0)).project(this.camera);
+      const centerX = (center.x + 1) * 0.5 * bounds.width;
+      const centerY = (1 - center.y) * 0.5 * bounds.height;
+      const edgeX = (edge.x + 1) * 0.5 * bounds.width;
+      const edgeY = (1 - edge.y) * 0.5 * bounds.height;
+      const visibleRadius = Math.hypot(edgeX - centerX, edgeY - centerY);
+
+      targets.push({
+        key: node.key,
+        x: centerX,
+        y: centerY,
+        radius: Math.max(visibleRadius * renderTone.queue.touchRadiusScale, renderTone.queue.minimumTouchRadius)
+      });
+    }
+
+    return chooseClosestQueueTarget(pointer, targets);
+  }
+
   private handlePointerDown = (event: PointerEvent): void => {
     if (this.currentMode === 'detail' && !this.queueActive) {
       return;
@@ -1113,8 +1144,11 @@ gl_FragColor.rgb *= atlasShade;
     this.pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
 
-    const hit = this.raycaster.intersectObjects(this.pickables, false)[0];
-    const planetKey = (hit?.object.userData.planetKey ?? hit?.object.parent?.userData.planetKey) as PlanetKey | undefined;
+    const hit = this.queueActive ? undefined : this.raycaster.intersectObjects(this.pickables, false)[0];
+    const raycastPlanetKey = (hit?.object.userData.planetKey ?? hit?.object.parent?.userData.planetKey) as
+      | PlanetKey
+      | undefined;
+    const planetKey = this.queueActive ? this.findQueuePlanetAtPointer(event, bounds) : raycastPlanetKey;
 
     if (planetKey) {
       this.onSelectPlanet(planetKey);

@@ -51,6 +51,8 @@ export const renderTone = {
     cameraY: 0.34,
     ambientRotationY: -0.1,
     backgroundOpacity: 0.14,
-    transitionDuration: 0.96
+    transitionDuration: 0.96,
+    touchRadiusScale: 1.12,
+    minimumTouchRadius: 38
   }
 } as const;

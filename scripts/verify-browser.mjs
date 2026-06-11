@@ -245,7 +245,7 @@ try {
   if (!canvasBounds) {
     throw new Error('Queue mode canvas bounds are unavailable');
   }
-  await page.mouse.click(canvasBounds.x + canvasBounds.width * 0.695, canvasBounds.y + canvasBounds.height * 0.52);
+  await page.mouse.click(canvasBounds.x + canvasBounds.width * 0.677, canvasBounds.y + canvasBounds.height * 0.49);
   await page.locator('.target-label strong').filter({ hasText: 'MARS' }).waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(1400);
   const queueMeshClick = {
