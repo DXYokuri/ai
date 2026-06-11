@@ -1,4 +1,4 @@
-import type { PlanetKey, PlanetRecord } from './types';
+import type { AtlasTargetKey, PlanetKey, PlanetRecord } from './types';
 
 const PLANET_TEXTURE = 'https://unpkg.com/artastra@1.0.8/textures';
 const THREE_PLANETS = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets';
@@ -15,7 +15,9 @@ export const PLANET_ORDER = [
   'neptune'
 ] as const satisfies readonly PlanetKey[];
 
-export const planets: PlanetRecord[] = [
+export type MainPlanetRecord = PlanetRecord & { key: PlanetKey };
+
+export const planets: MainPlanetRecord[] = [
   {
     key: 'sun',
     label: 'SUN',
@@ -258,11 +260,44 @@ export const planets: PlanetRecord[] = [
   }
 ];
 
-export const planetByKey = new Map<PlanetKey, PlanetRecord>(
-  planets.map((planet) => [planet.key, planet])
+export const hiddenPlanets: PlanetRecord[] = [
+  {
+    key: 'pluto',
+    label: 'PLUTO',
+    order: 9,
+    visualRadius: 0.38,
+    overviewX: 9.8,
+    detailScale: 1.5,
+    color: '#e8dfda',
+    accent: '#f5ebe5',
+    textures: {
+      color: './textures/pluto/pluto-color-8k.jpg',
+      normal: './textures/pluto/pluto-normal-8k.jpg',
+      roughness: './textures/pluto/pluto-roughness-8k.jpg'
+    },
+    stats: {
+      diameter: '2,376.6 km',
+      mass: '1.303e22 kg',
+      gravity: '0.62 m/s2',
+      orbit: '248 years'
+    },
+    environment: {
+      temperature: '-233 to -223 C',
+      atmosphere: 'N2 / CH4 / CO',
+      pressure: '1 Pa',
+      surface: 'Nitrogen ice plains'
+    },
+    mission: ['New Horizons Flyby', 'Sputnik Planitia Survey', 'Charon Binary Analysis']
+  }
+];
+
+export const atlasTargets: PlanetRecord[] = [...planets, ...hiddenPlanets];
+
+export const planetByKey = new Map<AtlasTargetKey, PlanetRecord>(
+  atlasTargets.map((planet) => [planet.key, planet])
 );
 
-export function getPlanet(key: PlanetKey): PlanetRecord {
+export function getPlanet(key: AtlasTargetKey): PlanetRecord {
   const planet = planetByKey.get(key);
 
   if (!planet) {
@@ -270,4 +305,8 @@ export function getPlanet(key: PlanetKey): PlanetRecord {
   }
 
   return planet;
+}
+
+export function isHiddenTarget(key: AtlasTargetKey): key is 'pluto' {
+  return key === 'pluto';
 }

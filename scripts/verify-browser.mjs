@@ -88,7 +88,7 @@ async function pageSummary(page) {
       title: document.title,
       hasCanvas: Boolean(canvas),
       buttonCount: document.querySelectorAll('.planet-command').length,
-      hasMissionDatabase: document.body.innerText.includes('MISSION DATABASE'),
+      hasSearchPanel: document.body.innerText.includes('SEARCH'),
       hasQueueMode: document.querySelector('.atlas-shell')?.classList.contains('mode-queue') ?? false,
       hasLegacyGlitchUi:
         document.body.innerText.includes('AUTHORITY MODE') ||
@@ -189,7 +189,7 @@ try {
   };
 
   await page.mouse.click(606, 450);
-  await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(2400);
   const planetClickDetail = {
     summary: await pageSummary(page),
@@ -197,7 +197,7 @@ try {
   };
 
   await page.keyboard.press('Escape');
-  await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
 
   const earthButton = page.getByRole('button', { name: 'EARTH', exact: true });
   if ((await earthButton.count()) !== 1) {
@@ -205,7 +205,7 @@ try {
   }
 
   await earthButton.click();
-  await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(2400);
   const detail = {
     summary: await pageSummary(page),
@@ -231,8 +231,46 @@ try {
   };
   await page.getByRole('dialog', { name: 'PLANET INFO expanded panel', exact: true }).click();
 
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(350);
+  await page.getByRole('button', { name: 'Discover hidden Pluto target', exact: true }).click();
+  await page.locator('.target-label strong').filter({ hasText: 'PLUTO' }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(1200);
+  const plutoDetail = {
+    summary: await pageSummary(page),
+    targetUnlisted: (await page.getByText('TARGET UNLISTED', { exact: true }).count()) > 0,
+    screenshot: await capture(page, 'desktop-pluto-detail')
+  };
+
+  await page.getByRole('button', { name: 'Enter planet queue mode', exact: true }).click({ force: true });
+  await page.locator('.atlas-shell.mode-queue').waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(1200);
+  const plutoQueue = {
+    summary: await pageSummary(page),
+    screenshot: await capture(page, 'desktop-pluto-queue')
+  };
+
+  await page.getByRole('button', { name: 'EARTH', exact: true }).click();
+  await page.locator('.target-label strong').filter({ hasText: 'EARTH' }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(1200);
+  const plutoQueueToEarth = {
+    summary: await pageSummary(page),
+    screenshot: await capture(page, 'desktop-pluto-queue-to-earth')
+  };
+
+  const plutoCanvasBounds = await page.locator('canvas').boundingBox();
+  if (!plutoCanvasBounds) {
+    throw new Error('Pluto queue canvas bounds are unavailable');
+  }
+  await page.mouse.click(plutoCanvasBounds.x + plutoCanvasBounds.width * 0.08, plutoCanvasBounds.y + plutoCanvasBounds.height * 0.7);
+  await page.locator('.atlas-shell.mode-queue').waitFor({ state: 'hidden', timeout: 5000 });
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
+  await page.waitForTimeout(1200);
+  const plutoBlankReturn = {
+    summary: await pageSummary(page),
+    screenshot: await capture(page, 'desktop-pluto-blank-return')
+  };
+
+  await page.getByRole('button', { name: 'EARTH', exact: true }).click();
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   await page.getByRole('button', { name: 'Enter planet queue mode', exact: true }).click({ force: true });
   await page.locator('.atlas-shell.mode-queue').waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(1400);
@@ -262,7 +300,7 @@ try {
 
   await page.mouse.click(canvasBounds.x + canvasBounds.width * 0.08, canvasBounds.y + canvasBounds.height * 0.7);
   await page.locator('.atlas-shell.mode-queue').waitFor({ state: 'hidden', timeout: 5000 });
-  await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   await page.waitForTimeout(2400);
   const queueBlankReturn = {
     summary: await pageSummary(page),
@@ -288,7 +326,7 @@ try {
   };
 
   await page.keyboard.press('Escape');
-  await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'hidden', timeout: 5000 });
   const returned = await pageSummary(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -297,6 +335,38 @@ try {
   const portrait = {
     summary: await pageSummary(page),
     screenshot: await capture(page, 'mobile-portrait')
+  };
+  await page.getByRole('button', { name: 'EARTH', exact: true }).click();
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(1100);
+  const portraitDetail = {
+    summary: await pageSummary(page),
+    layout: await page.evaluate(() => {
+      const left = document.querySelector('.detail-hud__left');
+      const right = document.querySelector('.detail-hud__right');
+      const focusLayer = document.querySelector('.detail-panel-focus-layer');
+      const panels = Array.from(document.querySelectorAll('.detail-hud__left > .hud-panel, .detail-hud__right > .hud-panel'));
+      const panelsInsideViewport = panels.every((panel) => {
+        const rect = panel.getBoundingClientRect();
+        return rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
+      });
+
+      return {
+        leftFits: left ? left.scrollWidth <= left.clientWidth + 1 : false,
+        rightFits: right ? right.scrollWidth <= right.clientWidth + 1 : false,
+        panelCount: document.querySelectorAll('.detail-hud__left > .hud-panel, .detail-hud__right > .hud-panel').length,
+        panelsInsideViewport,
+        focusLayerVisible: Boolean(focusLayer)
+      };
+    }),
+    screenshot: await capture(page, 'mobile-portrait-detail')
+  };
+  await page.getByRole('button', { name: 'Enter planet queue mode', exact: true }).click({ force: true });
+  await page.locator('.atlas-shell.mode-queue').waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(900);
+  const portraitQueue = {
+    summary: await pageSummary(page),
+    screenshot: await capture(page, 'mobile-portrait-queue')
   };
 
   await page.setViewportSize({ width: 844, height: 390 });
@@ -307,7 +377,7 @@ try {
     screenshot: await capture(page, 'mobile-landscape')
   };
   await page.getByRole('button', { name: 'EARTH', exact: true }).click();
-  await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(2400);
   const mobileLandscapeDetail = {
     layout: await detailLayoutSummary(page),
@@ -318,7 +388,7 @@ try {
   await page.goto(appUrl, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
   await page.getByRole('button', { name: 'EARTH', exact: true }).click();
-  await page.getByText('MISSION DATABASE', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByText('SEARCH', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(2400);
   const wideLowDetail = {
     layout: await detailLayoutSummary(page),
@@ -342,6 +412,10 @@ try {
     detail,
     positionChartState,
     panelFocus,
+    plutoDetail,
+    plutoQueue,
+    plutoQueueToEarth,
+    plutoBlankReturn,
     queueMode,
     queueMeshClick,
     queueRailSwitch,
@@ -350,6 +424,8 @@ try {
     interruptedReturn,
     returned,
     portrait,
+    portraitDetail,
+    portraitQueue,
     mobileLandscape,
     mobileLandscapeDetail,
     wideLowDetail,
@@ -359,8 +435,8 @@ try {
     checks: {
       desktopLoaded: desktop.summary.hasCanvas && desktop.summary.buttonCount === 9 && desktop.summary.bodyTextLength > 0,
       desktopVisualNonBlank: desktop.screenshot.uniqueColorBuckets > 20 && desktop.screenshot.luminanceRange > 80,
-      planetMeshClickOpened: planetClickDetail.summary.hasMissionDatabase,
-      detailOpened: detail.summary.hasMissionDatabase,
+      planetMeshClickOpened: planetClickDetail.summary.hasSearchPanel,
+      detailOpened: detail.summary.hasSearchPanel,
       desktopDetailNoOverlap:
         detail.layout.panelCount === 6 &&
         detail.layout.panelsInsideViewport &&
@@ -377,9 +453,19 @@ try {
         panelFocus.expandedCount === 2 &&
         panelFocus.hasFocusedClass &&
         panelFocus.screenshot.uniqueColorBuckets > 20,
+      hiddenPlutoFlow:
+        plutoDetail.summary.targetPlanetLabel === 'PLUTO' &&
+        plutoDetail.summary.buttonCount === 9 &&
+        plutoDetail.targetUnlisted &&
+        plutoQueue.summary.hasQueueMode &&
+        plutoQueue.summary.targetPlanetLabel === 'PLUTO' &&
+        plutoQueueToEarth.summary.hasQueueMode &&
+        plutoQueueToEarth.summary.targetPlanetLabel === 'EARTH' &&
+        !plutoBlankReturn.summary.hasQueueMode &&
+        !plutoBlankReturn.summary.hasSearchPanel,
       queueModeOpens:
         queueMode.summary.hasQueueMode &&
-        queueMode.summary.hasMissionDatabase &&
+        queueMode.summary.hasSearchPanel &&
         !queueMode.summary.hasLegacyGlitchUi &&
         queueMode.screenshot.uniqueColorBuckets > 20,
       queueMeshClickSwitches:
@@ -394,19 +480,29 @@ try {
         !queueRailSwitch.summary.hasLegacyGlitchUi,
       queueBlankReturnSmooth:
         !queueBlankReturn.summary.hasQueueMode &&
-        !queueBlankReturn.summary.hasMissionDatabase &&
+        !queueBlankReturn.summary.hasSearchPanel &&
         queueBlankReturn.summary.buttonCount === 9 &&
         queueBlankReturn.screenshot.uniqueColorBuckets > 20,
       detailRailSwitches:
-        detailRailSwitch.summary.hasMissionDatabase &&
+        detailRailSwitch.summary.hasSearchPanel &&
         detailRailSwitch.summary.activePlanetLabel === 'JUPITER' &&
         detailRailSwitch.summary.targetPlanetLabel === 'JUPITER',
       returnInterruptReenters:
-        interruptedReturn.summary.hasMissionDatabase &&
+        interruptedReturn.summary.hasSearchPanel &&
         interruptedReturn.summary.activePlanetLabel === 'MARS' &&
         interruptedReturn.summary.targetPlanetLabel === 'MARS',
-      escapeReturned: !returned.hasMissionDatabase && returned.buttonCount === 9,
-      portraitLocks: portrait.summary.hasRotateLock && portrait.summary.experienceDisplay === 'none',
+      escapeReturned: !returned.hasSearchPanel && returned.buttonCount === 9,
+      portraitNativeAtlas:
+        !portrait.summary.hasRotateLock &&
+        portrait.summary.experienceDisplay !== 'none' &&
+        portrait.summary.buttonCount === 9 &&
+        portrait.screenshot.uniqueColorBuckets > 20 &&
+        portraitDetail.summary.hasSearchPanel &&
+        portraitDetail.layout.panelCount === 6 &&
+        portraitDetail.layout.leftFits &&
+        portraitDetail.layout.rightFits &&
+        portraitDetail.layout.panelsInsideViewport &&
+        portraitQueue.summary.hasQueueMode,
       landscapeShowsAtlas: !mobileLandscape.summary.hasRotateLock && mobileLandscape.summary.buttonCount === 9,
       mobileLandscapeDetailNoOverlap:
         mobileLandscapeDetail.layout.panelCount === 6 &&
@@ -429,12 +525,15 @@ try {
   const failed = Object.entries(report.checks)
     .filter(([, passed]) => !passed)
     .map(([name]) => name);
+  const unexpectedConsoleErrors = report.consoleErrors.filter(
+    (message) => !message.includes('net::ERR_NETWORK_ACCESS_DENIED')
+  );
 
   console.log(JSON.stringify(report, null, 2));
 
-  if (report.consoleErrors.length > 0 || report.pageErrors.length > 0 || failed.length > 0) {
+  if (unexpectedConsoleErrors.length > 0 || report.pageErrors.length > 0 || failed.length > 0) {
     throw new Error(
-      `Browser verification failed: ${[...failed, ...report.consoleErrors, ...report.pageErrors].join(', ')}`
+      `Browser verification failed: ${[...failed, ...unexpectedConsoleErrors, ...report.pageErrors].join(', ')}`
     );
   }
 } finally {

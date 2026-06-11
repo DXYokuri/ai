@@ -18,4 +18,9 @@ describe('renderTone', () => {
     expect(renderTone.atmosphere.planetIntensity).toBeGreaterThanOrEqual(0.32);
     expect(renderTone.surface.shadowFloor).toBeGreaterThanOrEqual(0.24);
   });
+
+  it('keeps the outer dome-light scatter softer and dimmer than the inner arc crown', () => {
+    expect(renderTone.atmosphere.outerDetailIntensity).toBeLessThan(renderTone.atmosphere.innerDetailIntensity);
+    expect(renderTone.atmosphere.queueIntensityScale).toBeLessThan(1);
+  });
 });

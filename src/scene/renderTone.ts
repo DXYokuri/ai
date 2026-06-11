@@ -26,7 +26,10 @@ export const renderTone = {
   atmosphere: {
     sunIntensity: 0.18,
     sunOutlineIntensity: 0.2,
-    planetIntensity: 0.34
+    planetIntensity: 0.34,
+    innerDetailIntensity: 0.42,
+    outerDetailIntensity: 0.18,
+    queueIntensityScale: 0.62
   },
   surface: {
     shadowFloor: 0.25,

@@ -126,10 +126,16 @@ describe('SolarAtlasScene quality constraints', () => {
 
   it('fully hides planets replaced during standard detail switching', () => {
     expect(source).toContain('private showNode(node: PlanetNode): void');
-    expect(source).toContain('private hideInactiveDetailNode(node: PlanetNode, selectedKey: PlanetKey): void');
+    expect(source).toContain('private hideInactiveDetailNode(node: PlanetNode, selectedKey: AtlasTargetKey): void');
     expect(source).toContain('this.setNodeVisibility(node, 0, 0.78);');
     expect(source).toContain('node.group.visible = false;');
     expect(source).toContain('this.showNode(node);');
+  });
+
+  it('renders hidden Pluto alone when queue mode is active', () => {
+    expect(source).toContain("const hiddenQueue = selectedKey === 'pluto';");
+    expect(source).toContain('if (hiddenQueue && node.key !== selectedKey)');
+    expect(source).toContain('node.group.visible = false;');
   });
 
   it('adds a dedicated outline light to the overview sun', () => {
@@ -137,6 +143,18 @@ describe('SolarAtlasScene quality constraints', () => {
     expect(source).toContain('this.createSunOutline(plan.radius, planet)');
     expect(source).toContain("sunOutline.name = 'sun-silhouette-outline-light'");
     expect(source).toContain('renderTone.atmosphere.sunOutlineIntensity');
+  });
+
+  it('uses a dual-layer directional shader arc crown in detail and queue modes', () => {
+    expect(source).toContain('atmosphereScatter: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;');
+    expect(source).toContain('private createAtmosphereScatter');
+    expect(source).toContain('uniform float rimPower;');
+    expect(source).toContain('uniform float backlightFloor;');
+    expect(source).toContain('float arcCrown = smoothstep');
+    expect(source).toContain('this.setAtmosphereProfile(node,');
+    expect(renderToneSource).toContain('innerDetailIntensity');
+    expect(renderToneSource).toContain('outerDetailIntensity');
+    expect(renderToneSource).toContain('queueIntensityScale');
   });
 
   it('keeps the overview sun outline thin and increases the idle planet drift', () => {
@@ -180,5 +198,48 @@ describe('SolarAtlasScene quality constraints', () => {
     expect(styles).toContain('@media (max-height: 440px) and (orientation: landscape)');
     expect(styles).toContain('--detail-safe-bottom: 86px;');
     expect(styles).toContain('--detail-safe-top: 96px;');
+  });
+
+  it('keeps detail interaction unlocked throughout transition animations', () => {
+    expect(appSource).toContain('locked={detailVisible}');
+    expect(styles).toContain('.mode-transition-in .detail-hud');
+    expect(styles).toContain('.mode-transition-out .detail-hud');
+    expect(styles).toContain('pointer-events: auto;');
+  });
+
+  it('keeps an expanded panel mounted while its planet content changes', () => {
+    expect(appSource).not.toContain('key={`${activePanel.key}-${planet.key}`}');
+    expect(appSource).not.toContain('key={activePanel.key}');
+    expect(styles).toContain('@keyframes detail-panel-content-refresh');
+  });
+
+  it('uses a native portrait atlas instead of a rotate-device lock screen', () => {
+    expect(appSource).not.toContain('ROTATE DEVICE');
+    expect(styles).not.toContain('.atlas-experience {\n    display: none;');
+    expect(styles).toContain('@media (max-width: 900px) and (orientation: portrait)');
+    expect(styles).toContain('scroll-snap-type: x mandatory;');
+    expect(source).toContain('private portraitActive = false;');
+    expect(source).toContain('private getOverviewPosition');
+    expect(source).toContain('if (this.portraitActive)');
+  });
+
+  it('uses a straight portrait overview queue with breathing space', () => {
+    expect(source).toContain('return new THREE.Vector3(0, -relativeIndex * 1.08, -Math.abs(relativeIndex) * 0.28);');
+  });
+
+  it('keeps every portrait detail panel visible and the bottom rail touch draggable', () => {
+    expect(styles).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
+    expect(styles).toContain('touch-action: pan-x;');
+    expect(styles).toContain('-webkit-overflow-scrolling: touch;');
+  });
+
+  it('releases the detail HUD during return so the next canvas action is immediate', () => {
+    expect(styles).toContain('.mode-transition-out .detail-hud.is-locked');
+    expect(styles).toContain('pointer-events: none;');
+  });
+
+  it('keeps normal and roughness maps in linear color space', () => {
+    expect(source).toContain('this.loadTexture(planet.textures.normal, THREE.NoColorSpace');
+    expect(source).toContain('this.loadTexture(planet.textures.roughness, THREE.NoColorSpace');
   });
 });

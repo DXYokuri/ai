@@ -9,6 +9,8 @@ export type PlanetKey =
   | 'uranus'
   | 'neptune';
 
+export type HiddenPlanetKey = 'pluto';
+export type AtlasTargetKey = PlanetKey | HiddenPlanetKey;
 export type AtlasMode = 'overview' | 'transition-in' | 'detail' | 'transition-out';
 
 export interface PlanetTextures {
@@ -22,7 +24,7 @@ export interface PlanetTextures {
 }
 
 export interface PlanetRecord {
-  key: PlanetKey;
+  key: AtlasTargetKey;
   label: string;
   order: number;
   visualRadius: number;
@@ -38,5 +40,5 @@ export interface PlanetRecord {
 
 export interface AtlasState {
   mode: AtlasMode;
-  selectedPlanet: PlanetKey | null;
+  selectedPlanet: AtlasTargetKey | null;
 }

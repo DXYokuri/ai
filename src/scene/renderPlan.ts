@@ -1,8 +1,8 @@
-import type { PlanetKey, PlanetRecord } from '../domain/types';
+import type { AtlasTargetKey, PlanetRecord } from '../domain/types';
 import { renderTone } from './renderTone';
 
 export interface PlanetRenderPlan {
-  key: PlanetKey;
+  key: AtlasTargetKey;
   x: number;
   y: number;
   z: number;

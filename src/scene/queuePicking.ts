@@ -1,4 +1,4 @@
-import type { PlanetKey } from '../domain/types';
+import type { AtlasTargetKey } from '../domain/types';
 
 export interface QueuePickPoint {
   x: number;
@@ -6,15 +6,15 @@ export interface QueuePickPoint {
 }
 
 export interface QueuePickTarget extends QueuePickPoint {
-  key: PlanetKey;
+  key: AtlasTargetKey;
   radius: number;
 }
 
 export function chooseClosestQueueTarget(
   pointer: QueuePickPoint,
   targets: QueuePickTarget[]
-): PlanetKey | undefined {
-  let closestKey: PlanetKey | undefined;
+): AtlasTargetKey | undefined {
+  let closestKey: AtlasTargetKey | undefined;
   let closestDistanceSquared = Number.POSITIVE_INFINITY;
 
   for (const target of targets) {

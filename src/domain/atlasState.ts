@@ -1,4 +1,4 @@
-import type { AtlasState, PlanetKey } from './types';
+import type { AtlasState, AtlasTargetKey } from './types';
 
 export function createAtlasState(): AtlasState {
   return {
@@ -7,7 +7,7 @@ export function createAtlasState(): AtlasState {
   };
 }
 
-export function selectPlanet(state: AtlasState, selectedPlanet: PlanetKey): AtlasState {
+export function selectPlanet(state: AtlasState, selectedPlanet: AtlasTargetKey): AtlasState {
   if (state.mode === 'detail' && state.selectedPlanet === selectedPlanet) {
     return state;
   }

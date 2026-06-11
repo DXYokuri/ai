@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import type { ReactElement } from 'react';
-import type { AtlasMode, PlanetKey } from '../domain/types';
+import type { AtlasMode, AtlasTargetKey } from '../domain/types';
 import { SolarAtlasScene } from './SolarAtlasScene';
 
 interface SolarAtlasStageProps {
   queueMode: boolean;
   mode: AtlasMode;
-  selectedPlanet: PlanetKey | null;
-  onSelectPlanet: (planetKey: PlanetKey) => void;
+  selectedPlanet: AtlasTargetKey | null;
+  onSelectPlanet: (planetKey: AtlasTargetKey) => void;
   onReturn: () => void;
 }
 

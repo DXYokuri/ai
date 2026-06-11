@@ -198,14 +198,30 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: /focus orbit position panel/i }));
 
     expect(await screen.findByRole('dialog', { name: /orbit position expanded panel/i })).toBeTruthy();
+    const expandedPanel = screen.getByRole('dialog', { name: /orbit position expanded panel/i });
     fireEvent.click(screen.getByRole('button', { name: /jupiter/i }));
 
     await waitFor(() => {
-      const expandedChart = within(screen.getByRole('dialog', { name: /orbit position expanded panel/i })).getByLabelText(
-        'Planet position chart'
-      );
+      const currentPanel = screen.getByRole('dialog', { name: /orbit position expanded panel/i });
+      expect(currentPanel).toBe(expandedPanel);
+      const expandedChart = within(currentPanel).getByLabelText('Planet position chart');
       expect(within(expandedChart).getByLabelText('JUPITER position').getAttribute('aria-current')).toBe('true');
     });
+  });
+
+  it('keeps detail controls interactive during transition-in and closes focused panels for major view changes', async () => {
+    render(<App animationDurationMs={2000} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /earth/i }));
+    const detail = await screen.findByLabelText(/earth detail interface/i);
+    expect(detail.className).toContain('is-locked');
+
+    fireEvent.click(screen.getByRole('button', { name: /focus orbit position panel/i }));
+    expect(await screen.findByRole('dialog', { name: /orbit position expanded panel/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /discover hidden pluto target/i }));
+    await waitFor(() => expect(screen.getByLabelText(/pluto detail interface/i)).toBeTruthy());
+    expect(screen.queryByRole('dialog', { name: /orbit position expanded panel/i })).toBeNull();
   });
 
   it('replaces the right middle panel with Pluto search results', async () => {
@@ -219,5 +235,27 @@ describe('App', () => {
     const detail = screen.getByLabelText(/earth detail interface/i);
     expect(within(detail).queryByText('ANALYTICS')).toBeNull();
     expect(within(detail).queryByText('MISSION DATABASE')).toBeNull();
+  });
+
+  it('opens hidden Pluto from search without adding it to the persistent command rail', async () => {
+    render(<App animationDurationMs={0} />);
+    fireEvent.click(screen.getByRole('button', { name: /earth/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /discover hidden pluto target/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/pluto detail interface/i)).toBeTruthy();
+      expect(screen.getAllByText('PLUTO').length).toBeGreaterThan(0);
+    });
+    expect(screen.getByLabelText('Planet selection').querySelectorAll('button')).toHaveLength(9);
+    expect(screen.queryByRole('button', { name: /^pluto$/i })).toBeNull();
+
+    const chart = screen.getByLabelText('Planet position chart');
+    expect(within(chart).getByText('TARGET UNLISTED')).toBeTruthy();
+    expect(within(chart).getAllByTestId('planet-silhouette').every((silhouette) => !silhouette.hasAttribute('aria-current'))).toBe(
+      true
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /earth/i }));
+    await waitFor(() => expect(screen.getByLabelText(/earth detail interface/i)).toBeTruthy());
   });
 });

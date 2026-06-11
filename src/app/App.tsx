@@ -6,7 +6,6 @@ import {
   ChevronUp,
   Clock3,
   Orbit,
-  RotateCcw,
   Satellite,
   Search,
   Shield,
@@ -14,7 +13,7 @@ import {
 } from 'lucide-react';
 import { beginReturn, completeReturn, completeTransitionIn, createAtlasState, selectPlanet } from '../domain/atlasState';
 import { getPlanet, planets } from '../domain/planetData';
-import type { AtlasState, PlanetKey } from '../domain/types';
+import type { AtlasState, AtlasTargetKey, PlanetKey } from '../domain/types';
 import { SolarAtlasStage } from '../scene/SolarAtlasStage';
 
 interface AppProps {
@@ -28,7 +27,7 @@ export function App({ animationDurationMs = 2100 }: AppProps): ReactElement {
   const detailVisible = atlasState.mode === 'detail' || atlasState.mode === 'transition-in' || atlasState.mode === 'transition-out';
 
   const handleSelectPlanet = useCallback(
-    (planetKey: PlanetKey) => {
+    (planetKey: AtlasTargetKey) => {
       setAtlasState((state) => selectPlanet(state, planetKey));
     },
     []
@@ -92,14 +91,6 @@ export function App({ animationDurationMs = 2100 }: AppProps): ReactElement {
 
   return (
     <main className={shellClassName}>
-      <div className="rotate-lock" aria-hidden="true">
-        <div className="rotate-lock__frame">
-          <RotateCcw size={22} />
-          <span>ROTATE DEVICE</span>
-          <small>LANDSCAPE MODE</small>
-        </div>
-      </div>
-
       <div className="atlas-experience">
         <SolarAtlasStage
           queueMode={queueMode && detailVisible}
@@ -121,7 +112,8 @@ export function App({ animationDurationMs = 2100 }: AppProps): ReactElement {
             <DetailHud
               queueMode={queueMode}
               planet={selectedPlanet}
-              locked={atlasState.mode === 'detail'}
+              locked={detailVisible}
+              onOpenPluto={() => handleSelectPlanet('pluto')}
               onBackdropReturn={handleReturn}
             />
           </>
@@ -135,8 +127,8 @@ export function App({ animationDurationMs = 2100 }: AppProps): ReactElement {
 
 interface OverviewOverlayProps {
   mode: AtlasState['mode'];
-  selectedPlanet: PlanetKey | null;
-  onSelectPlanet: (planetKey: PlanetKey) => void;
+  selectedPlanet: AtlasTargetKey | null;
+  onSelectPlanet: (planetKey: AtlasTargetKey) => void;
 }
 
 function OverviewOverlay({ mode, selectedPlanet, onSelectPlanet }: OverviewOverlayProps): ReactElement {
@@ -184,15 +176,21 @@ interface DetailHudProps {
   queueMode: boolean;
   planet: ReturnType<typeof getPlanet>;
   locked: boolean;
+  onOpenPluto: () => void;
   onBackdropReturn: () => void;
 }
 
-function DetailHud({ queueMode, planet, locked, onBackdropReturn }: DetailHudProps): ReactElement {
+function DetailHud({ queueMode, planet, locked, onOpenPluto, onBackdropReturn }: DetailHudProps): ReactElement {
   const [focusedPanel, setFocusedPanel] = useState<FocusedPanelKey | null>(null);
 
   useEffect(() => {
     setFocusedPanel(null);
   }, [queueMode]);
+
+  const handleOpenPluto = () => {
+    setFocusedPanel(null);
+    onOpenPluto();
+  };
 
   return (
     <section
@@ -208,7 +206,12 @@ function DetailHud({ queueMode, planet, locked, onBackdropReturn }: DetailHudPro
         }
       }}
     >
-      <StandardDetailHud focusedPanel={focusedPanel} onFocusPanel={setFocusedPanel} planet={planet} />
+      <StandardDetailHud
+        focusedPanel={focusedPanel}
+        onFocusPanel={setFocusedPanel}
+        onOpenPluto={handleOpenPluto}
+        planet={planet}
+      />
 
       <footer className="detail-footer">
         <span>MODE COMMAND</span>
@@ -246,6 +249,7 @@ function QueueToggle({ active, onToggle }: QueueToggleProps): ReactElement {
 interface StandardDetailHudProps {
   focusedPanel: FocusedPanelKey | null;
   onFocusPanel: (panel: FocusedPanelKey | null) => void;
+  onOpenPluto: () => void;
   planet: ReturnType<typeof getPlanet>;
 }
 
@@ -257,7 +261,7 @@ const plutoSearchResults = [
   'PLUTO RECLASSIFIED AS A DWARF PLANET'
 ];
 
-function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetailHudProps): ReactElement {
+function StandardDetailHud({ focusedPanel, onFocusPanel, onOpenPluto, planet }: StandardDetailHudProps): ReactElement {
   const panelDefinitions: Array<{
     key: FocusedPanelKey;
     icon: ReactNode;
@@ -328,7 +332,7 @@ function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetai
           <SystemTime />
         </HudPanel>
 
-        <HudPanel icon={<Search size={15} />} title="SEARCH">
+        <HudPanel actionLabel="Discover hidden Pluto target" icon={<Search size={15} />} onAction={onOpenPluto} title="SEARCH">
           <ul className="mission-list">
             {plutoSearchResults.map((result) => (
               <li key={result}>
@@ -353,12 +357,13 @@ function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetai
         <div
           aria-label={`${activePanel.title} expanded panel`}
           className="detail-panel-focus-layer"
-          key={`${activePanel.key}-${planet.key}`}
           onClick={() => onFocusPanel(null)}
           role="dialog"
         >
           <HudPanel expanded icon={activePanel.icon} title={activePanel.title}>
-            {activePanel.renderContent()}
+            <div className="detail-panel-content-refresh" key={`content-${planet.key}-${activePanel.title}`}>
+              {activePanel.renderContent()}
+            </div>
           </HudPanel>
         </div>
       ) : null}
@@ -388,7 +393,7 @@ function SystemTime(): ReactElement {
 }
 
 interface PlanetPositionChartProps {
-  planetKey: PlanetKey;
+  planetKey: AtlasTargetKey;
 }
 
 const positionChartSizes: Record<Exclude<PlanetKey, 'sun'>, number> = {
@@ -404,7 +409,8 @@ const positionChartSizes: Record<Exclude<PlanetKey, 'sun'>, number> = {
 
 function PlanetPositionChart({ planetKey }: PlanetPositionChartProps): ReactElement {
   const orbitalPlanets = planets.filter((planet): planet is typeof planet & { key: Exclude<PlanetKey, 'sun'> } => planet.key !== 'sun');
-  const selectedIndex = planetKey === 'sun' ? 3.5 : orbitalPlanets.findIndex((planet) => planet.key === planetKey);
+  const unlisted = planetKey === 'pluto';
+  const selectedIndex = planetKey === 'sun' || unlisted ? 3.5 : orbitalPlanets.findIndex((planet) => planet.key === planetKey);
 
   return (
     <div aria-label="Planet position chart" className="planet-position-chart">
@@ -418,7 +424,7 @@ function PlanetPositionChart({ planetKey }: PlanetPositionChartProps): ReactElem
       <div className="planet-position-chart__axis" aria-hidden="true" />
       <div className="planet-position-chart__track">
         {orbitalPlanets.map((planet, index) => {
-          const active = planet.key === planetKey;
+          const active = !unlisted && planet.key === planetKey;
           const offset = (index - selectedIndex) * 26;
 
           return (
@@ -442,44 +448,65 @@ function PlanetPositionChart({ planetKey }: PlanetPositionChartProps): ReactElem
           );
         })}
       </div>
+      {unlisted ? <span className="planet-position-chart__unlisted">TARGET UNLISTED</span> : null}
     </div>
   );
 }
 
 interface HudPanelProps {
+  actionLabel?: string;
   children: ReactNode;
   expanded?: boolean;
   focusable?: boolean;
   icon: ReactNode;
+  onAction?: () => void;
   onFocus?: () => void;
   title: string;
 }
 
-function HudPanel({ children, expanded = false, focusable = false, icon, onFocus, title }: HudPanelProps): ReactElement {
+function HudPanel({
+  actionLabel,
+  children,
+  expanded = false,
+  focusable = false,
+  icon,
+  onAction,
+  onFocus,
+  title
+}: HudPanelProps): ReactElement {
+  const interactive = focusable || Boolean(onAction);
+  const activate = () => {
+    if (onAction) {
+      onAction();
+    } else {
+      onFocus?.();
+    }
+  };
+
   return (
     <article
-      aria-label={focusable ? `Focus ${title} panel` : undefined}
-      className={`hud-panel ${focusable ? 'is-focusable' : ''} ${expanded ? 'is-expanded' : ''}`}
+      aria-label={actionLabel ?? (focusable ? `Focus ${title} panel` : undefined)}
+      className={`hud-panel ${interactive ? 'is-focusable' : ''} ${onAction ? 'is-actionable' : ''} ${expanded ? 'is-expanded' : ''}`}
       onClick={
-        focusable
+        interactive
           ? (event) => {
               event.stopPropagation();
-              onFocus?.();
+              activate();
             }
           : undefined
       }
       onKeyDown={
-        focusable
+        interactive
           ? (event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
-                onFocus?.();
+                activate();
               }
             }
           : undefined
       }
-      role={focusable ? 'button' : undefined}
-      tabIndex={focusable ? 0 : undefined}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
     >
       <header>
         {icon}

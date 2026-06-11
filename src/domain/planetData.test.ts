@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PLANET_ORDER, planets } from './planetData';
+import { PLANET_ORDER, getPlanet, hiddenPlanets, planets } from './planetData';
 
 describe('planetData', () => {
   it('keeps the atlas order from the Sun to Neptune', () => {
@@ -39,5 +39,21 @@ describe('planetData', () => {
     expect(earth?.textures.night).toBeDefined();
     expect(earth?.textures.normal).toBeDefined();
     expect(saturn?.textures.ring).toBeDefined();
+  });
+
+  it('keeps Pluto as a complete hidden target outside the main planet order', () => {
+    expect(planets).toHaveLength(9);
+    expect(PLANET_ORDER).not.toContain('pluto');
+    expect(hiddenPlanets.map((planet) => planet.key)).toEqual(['pluto']);
+    expect(getPlanet('pluto').textures.color).toMatch(/^\.\/textures\/pluto\//);
+    expect(getPlanet('pluto').label).toBe('PLUTO');
+  });
+
+  it('uses local high-fidelity color, normal, and roughness maps for Pluto', () => {
+    const pluto = getPlanet('pluto');
+
+    expect(pluto.textures.color).toBe('./textures/pluto/pluto-color-8k.jpg');
+    expect(pluto.textures.normal).toBe('./textures/pluto/pluto-normal-8k.jpg');
+    expect(pluto.textures.roughness).toBe('./textures/pluto/pluto-roughness-8k.jpg');
   });
 });

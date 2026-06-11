@@ -34,4 +34,14 @@ describe('atlasState', () => {
 
     expect(selectPlanet(detail, 'earth')).toBe(detail);
   });
+
+  it('enters and leaves the hidden Pluto target through the standard lifecycle', () => {
+    const entering = selectPlanet(createAtlasState(), 'pluto');
+    const detail = completeTransitionIn(entering);
+    const returning = beginReturn(detail);
+
+    expect(entering).toMatchObject({ mode: 'transition-in', selectedPlanet: 'pluto' });
+    expect(detail).toMatchObject({ mode: 'detail', selectedPlanet: 'pluto' });
+    expect(completeReturn(returning)).toMatchObject({ mode: 'overview', selectedPlanet: null });
+  });
 });
