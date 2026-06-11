@@ -4,7 +4,7 @@ import {
   Activity,
   ChevronDown,
   ChevronUp,
-  Grid3X3,
+  Clock3,
   Orbit,
   RotateCcw,
   Satellite,
@@ -192,7 +192,7 @@ function DetailHud({ queueMode, planet, locked, onBackdropReturn }: DetailHudPro
 
   useEffect(() => {
     setFocusedPanel(null);
-  }, [queueMode, planet.key]);
+  }, [queueMode]);
 
   return (
     <section
@@ -249,7 +249,13 @@ interface StandardDetailHudProps {
   planet: ReturnType<typeof getPlanet>;
 }
 
-type FocusedPanelKey = 'planet-info' | 'statistics' | 'environment';
+type FocusedPanelKey = 'planet-info' | 'statistics' | 'environment' | 'orbit-position';
+
+const plutoSearchResults = [
+  'PLUTO REMOVED FROM THE EIGHT-PLANET ROSTER',
+  'PLUTO DELISTED FROM THE SOLAR SYSTEM',
+  'PLUTO RECLASSIFIED AS A DWARF PLANET'
+];
 
 function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetailHudProps): ReactElement {
   const panelDefinitions: Array<{
@@ -283,6 +289,12 @@ function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetai
       icon: <Signal size={15} />,
       title: 'ENVIRONMENT',
       renderContent: () => <MetricRows data={planet.environment} />
+    },
+    {
+      key: 'orbit-position',
+      icon: <Satellite size={15} />,
+      title: 'ORBIT POSITION',
+      renderContent: () => <PlanetPositionChart planetKey={planet.key} />
     }
   ];
   const activePanel = panelDefinitions.find((panel) => panel.key === focusedPanel) ?? null;
@@ -290,7 +302,7 @@ function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetai
   return (
     <>
       <div className="detail-hud__left">
-        {panelDefinitions.map((panel) => (
+        {panelDefinitions.slice(0, 3).map((panel) => (
           <HudPanel
             focusable
             icon={panel.icon}
@@ -312,30 +324,27 @@ function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetai
       </div>
 
       <div className="detail-hud__right">
-        <HudPanel icon={<Grid3X3 size={15} />} title="ANALYTICS">
-          <div className="chart-lines" aria-hidden="true">
-            {Array.from({ length: 5 }, (_, index) => (
-              <span key={index} />
-            ))}
-          </div>
-          <div className="analytics-readout">
-            <strong>76%</strong>
-            <span>ORBITAL CONFIDENCE</span>
-          </div>
+        <HudPanel icon={<Clock3 size={15} />} title="SYSTEM TIME">
+          <SystemTime />
         </HudPanel>
 
-        <HudPanel icon={<Search size={15} />} title="MISSION DATABASE">
+        <HudPanel icon={<Search size={15} />} title="SEARCH">
           <ul className="mission-list">
-            {planet.mission.map((mission) => (
-              <li key={mission}>
+            {plutoSearchResults.map((result) => (
+              <li key={result}>
                 <span />
-                {mission}
+                {result}
               </li>
             ))}
           </ul>
         </HudPanel>
 
-        <HudPanel icon={<Satellite size={15} />} title="ORBIT POSITION">
+        <HudPanel
+          focusable
+          icon={<Satellite size={15} />}
+          onFocus={() => onFocusPanel('orbit-position')}
+          title="ORBIT POSITION"
+        >
           <PlanetPositionChart planetKey={planet.key} />
         </HudPanel>
       </div>
@@ -344,6 +353,7 @@ function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetai
         <div
           aria-label={`${activePanel.title} expanded panel`}
           className="detail-panel-focus-layer"
+          key={`${activePanel.key}-${planet.key}`}
           onClick={() => onFocusPanel(null)}
           role="dialog"
         >
@@ -353,6 +363,27 @@ function StandardDetailHud({ focusedPanel, onFocusPanel, planet }: StandardDetai
         </div>
       ) : null}
     </>
+  );
+}
+
+function SystemTime(): ReactElement {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const time = now.toLocaleTimeString('en-GB', { hour12: false });
+  const date = now.toLocaleDateString('en-CA');
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  return (
+    <div className="system-time">
+      <strong>{time}</strong>
+      <span>{date}</span>
+      <small>{zone}</small>
+    </div>
   );
 }
 
