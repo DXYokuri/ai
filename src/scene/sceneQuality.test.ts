@@ -124,6 +124,14 @@ describe('SolarAtlasScene quality constraints', () => {
     expect(source).toContain('this.onReturn();');
   });
 
+  it('fully hides planets replaced during standard detail switching', () => {
+    expect(source).toContain('private showNode(node: PlanetNode): void');
+    expect(source).toContain('private hideInactiveDetailNode(node: PlanetNode, selectedKey: PlanetKey): void');
+    expect(source).toContain('this.setNodeVisibility(node, 0, 0.78);');
+    expect(source).toContain('node.group.visible = false;');
+    expect(source).toContain('this.showNode(node);');
+  });
+
   it('adds a dedicated outline light to the overview sun', () => {
     expect(source).toContain('outlineLight?: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial>;');
     expect(source).toContain('this.createSunOutline(plan.radius, planet)');

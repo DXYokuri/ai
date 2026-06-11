@@ -671,6 +671,7 @@ gl_FragColor.rgb *= atlasShade;
 
     for (const node of this.planetNodes.values()) {
       if (node.key === key) {
+        this.showNode(node);
         this.transitionTimeline.to(node.group.position, { x: 0, y: 0, z: 0, duration: 1.05 }, 0);
         this.transitionTimeline.to(
           node.group.scale,
@@ -690,7 +691,7 @@ gl_FragColor.rgb *= atlasShade;
           },
           0
         );
-        this.setNodeVisibility(node, 0.09, 0.78);
+        this.hideInactiveDetailNode(node, key);
       }
     }
 
@@ -736,6 +737,7 @@ gl_FragColor.rgb *= atlasShade;
     this.transitionTimeline.to(this.ambientGroup.rotation, { y: 0, duration: 1.1 }, 0);
 
     for (const node of this.planetNodes.values()) {
+      this.showNode(node);
       this.transitionTimeline.to(
         node.group.position,
         { x: node.basePosition.x, y: node.basePosition.y, z: node.basePosition.z, duration: 1.1 },
@@ -761,6 +763,7 @@ gl_FragColor.rgb *= atlasShade;
     this.resetQueueForOverview();
 
     for (const node of this.planetNodes.values()) {
+      this.showNode(node);
       node.group.position.copy(node.basePosition);
       node.group.scale.setScalar(node.baseScale);
       this.applyNodeVisibility(node, 1);
@@ -852,6 +855,7 @@ gl_FragColor.rgb *= atlasShade;
     }
 
     for (const node of this.planetNodes.values()) {
+      this.showNode(node);
       const pose = this.getQueuePose(getPlanet(node.key), selectedPlanet, node);
       this.queueTimeline.to(
         node.group.position,
@@ -865,6 +869,28 @@ gl_FragColor.rgb *= atlasShade;
       );
       this.setNodeVisibility(node, pose.visibility, duration, this.queueTimeline);
     }
+  }
+
+  private showNode(node: PlanetNode): void {
+    node.group.visible = true;
+  }
+
+  private hideInactiveDetailNode(node: PlanetNode, selectedKey: PlanetKey): void {
+    if (!node.group.visible) {
+      this.applyNodeVisibility(node, 0);
+      return;
+    }
+
+    this.setNodeVisibility(node, 0, 0.78);
+    this.transitionTimeline?.call(
+      () => {
+        if (!this.queueActive && this.selectedPlanet === selectedKey && node.key !== selectedKey) {
+          node.group.visible = false;
+        }
+      },
+      undefined,
+      0.8
+    );
   }
 
   private hideDetailOrbitLayerForQueue(): void {
