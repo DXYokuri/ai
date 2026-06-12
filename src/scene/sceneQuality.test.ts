@@ -228,7 +228,10 @@ describe('SolarAtlasScene quality constraints', () => {
   });
 
   it('keeps every portrait detail panel visible and the bottom rail touch draggable', () => {
-    expect(styles).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr);');
+    expect(styles).toContain('width: calc(50% - 17px);');
+    expect(styles).toContain('bottom: 11vh;');
+    expect(styles).toContain('gap: 10px;');
     expect(styles).toContain('touch-action: pan-x;');
     expect(styles).toContain('-webkit-overflow-scrolling: touch;');
   });

@@ -1391,25 +1391,28 @@ button {
   .detail-hud__left,
   .detail-hud__right {
     position: absolute;
-    left: 12px;
-    right: 12px;
+    top: 47vh;
+    bottom: 11vh;
+    width: calc(50% - 17px);
+    height: auto;
     z-index: 7;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    height: 17vh;
-    min-height: 128px;
-    gap: 7px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: 10px;
     padding: 0;
     overflow: visible;
   }
 
   .detail-hud__left {
-    top: 50vh;
+    left: 12px;
+    right: auto;
     transform: translateY(12px);
   }
 
   .detail-hud__right {
-    top: 68.5vh;
+    left: auto;
+    right: 12px;
     transform: translateY(12px);
   }
 
@@ -1424,7 +1427,9 @@ button {
   .detail-hud__right > .hud-panel {
     width: auto;
     min-width: 0;
-    padding: 7px;
+    min-height: 0;
+    padding: 8px;
+    border-radius: 0;
   }
 
   .detail-hud__left .hud-panel header,
@@ -1443,6 +1448,9 @@ button {
   .detail-hud__left .hud-panel__body,
   .detail-hud__right .hud-panel__body {
     padding-top: 5px;
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
+    scrollbar-width: none;
   }
 
   .detail-hud__left .planet-title strong {
@@ -1456,12 +1464,13 @@ button {
   .detail-hud__right .mission-list li,
   .detail-hud__right .system-time span,
   .detail-hud__right .system-time small {
-    font-size: 0.38rem;
+    font-size: 0.42rem;
+    line-height: 1.18;
   }
 
   .detail-hud__left .metric-rows,
   .detail-hud__right .mission-list {
-    gap: 3px;
+    gap: 5px;
   }
 
   .detail-hud__left .metric-rows div {
@@ -1479,7 +1488,7 @@ button {
   .detail-hud__right .mission-list li {
     grid-template-columns: 4px minmax(0, 1fr);
     gap: 3px;
-    line-height: 1.08;
+    line-height: 1.18;
   }
 
   .detail-hud__right .mission-list span {
