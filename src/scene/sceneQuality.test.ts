@@ -118,7 +118,7 @@ describe('SolarAtlasScene quality constraints', () => {
   it('returns to overview when queue mode receives a blank canvas click', () => {
     expect(appSource).toContain('onReturn={handleReturn}');
     expect(stageSource).toContain('onReturn: () => void');
-    expect(stageSource).toContain('new SolarAtlasScene(container, onSelectPlanet, onReturn)');
+    expect(stageSource).toContain('new SolarAtlasScene(container, onSelectPlanet, onActivatePlanet, onReturn)');
     expect(source).toContain('private readonly onReturn: () => void;');
     expect(source).toContain('if (this.queueActive && !planetKey) {');
     expect(source).toContain('this.onReturn();');
@@ -224,7 +224,9 @@ describe('SolarAtlasScene quality constraints', () => {
   });
 
   it('uses a straight portrait overview queue with breathing space', () => {
-    expect(source).toContain('return new THREE.Vector3(0, -relativeIndex * 1.08, -Math.abs(relativeIndex) * 0.28);');
+    expect(source).toContain('createPortraitOverviewLayout(planets, width, height');
+    expect(source).toContain('node.group.position.x = this.portraitActive');
+    expect(source).toContain('node.group.position.z = overviewPosition.z;');
   });
 
   it('keeps every portrait detail panel visible and the bottom rail touch draggable', () => {
@@ -239,6 +241,13 @@ describe('SolarAtlasScene quality constraints', () => {
   it('releases the detail HUD during return so the next canvas action is immediate', () => {
     expect(styles).toContain('.mode-transition-out .detail-hud.is-locked');
     expect(styles).toContain('pointer-events: none;');
+  });
+
+  it('provides a visible multilingual compatibility fallback instead of a blank WebGL layer', () => {
+    expect(stageSource).toContain('WebGL compatibility mode');
+    expect(stageSource).toContain('兼容模式');
+    expect(stageSource).toContain('호환 모드');
+    expect(stageSource).toContain('Copy link');
   });
 
   it('keeps normal and roughness maps in linear color space', () => {

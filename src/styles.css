@@ -83,6 +83,7 @@ button {
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: manipulation;
 }
 
 .webgl-fallback {
@@ -94,6 +95,91 @@ button {
     radial-gradient(circle at 18% 50%, rgba(255, 245, 214, 0.26), transparent 12%),
     radial-gradient(circle at 50% 50%, rgba(180, 220, 255, 0.2), transparent 9%),
     transparent;
+}
+
+.compatibility-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.98), rgba(0, 0, 0, 0.82) 66%, rgba(80, 80, 80, 0.82)),
+    #000;
+  color: #fff;
+}
+
+.compatibility-fallback__solar-system {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 45%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  opacity: 0.48;
+}
+
+.compatibility-planet {
+  display: block;
+  width: clamp(18px, 4vw, 64px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.compatibility-planet--sun {
+  width: clamp(90px, 14vw, 220px);
+}
+
+.compatibility-planet--jupiter {
+  width: clamp(50px, 8vw, 120px);
+}
+
+.compatibility-planet--saturn {
+  width: clamp(44px, 7vw, 105px);
+  box-shadow: 0 0 0 12px rgba(255, 255, 255, 0.06);
+}
+
+.compatibility-fallback__message {
+  position: relative;
+  z-index: 1;
+  width: min(540px, calc(100% - 32px));
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(0, 0, 0, 0.76);
+}
+
+.compatibility-fallback__message strong {
+  display: block;
+  margin-bottom: 14px;
+  font-size: clamp(0.82rem, 2vw, 1.1rem);
+}
+
+.compatibility-fallback__message p {
+  margin: 4px 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.72rem;
+}
+
+.compatibility-fallback__message div {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.compatibility-fallback__message button,
+.compatibility-fallback__message a {
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font: inherit;
+  font-size: 0.68rem;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .system-header {

@@ -5,11 +5,13 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { atlasTargets, getPlanet, isHiddenTarget } from '../domain/planetData';
+import { atlasTargets, getPlanet, isHiddenTarget, planets } from '../domain/planetData';
 import type { AtlasMode, AtlasTargetKey, PlanetRecord } from '../domain/types';
 import { createRenderPlan } from './renderPlan';
 import { renderTone } from './renderTone';
 import { chooseClosestQueueTarget, type QueuePickTarget } from './queuePicking';
+import { QueueDoubleActivation } from './queueDoubleActivation';
+import { createPortraitOverviewLayout, type PortraitOverviewLayout } from './portraitOverviewLayout';
 
 interface SceneSyncState {
   queueMode: boolean;
@@ -31,6 +33,7 @@ interface PlanetNode {
   baseScale: number;
   floatPhase: number;
   rotationSpeed: number;
+  highQualityRequested: boolean;
 }
 
 const atmosphereVertex = `
@@ -78,6 +81,7 @@ function seededRandom(seed: number): () => number {
 export class SolarAtlasScene {
   private readonly container: HTMLElement;
   private readonly onSelectPlanet: (planetKey: AtlasTargetKey) => void;
+  private readonly onActivatePlanet: (planetKey: AtlasTargetKey) => void;
   private readonly onReturn: () => void;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly composer: EffectComposer;
@@ -106,12 +110,22 @@ export class SolarAtlasScene {
   private overviewCameraZ = 15.5;
   private overviewCameraY = 1.4;
   private portraitActive = false;
+  private portraitOverviewLayout: PortraitOverviewLayout | null = null;
+  private readonly queueDoubleActivation = new QueueDoubleActivation(420);
+  private readonly textureQueue: Array<() => Promise<void>> = [];
+  private activeTextureLoads = 0;
   private transitionTimeline: gsap.core.Timeline | null = null;
   private queueTimeline: gsap.core.Timeline | null = null;
 
-  constructor(container: HTMLElement, onSelectPlanet: (planetKey: AtlasTargetKey) => void, onReturn: () => void) {
+  constructor(
+    container: HTMLElement,
+    onSelectPlanet: (planetKey: AtlasTargetKey) => void,
+    onActivatePlanet: (planetKey: AtlasTargetKey) => void,
+    onReturn: () => void
+  ) {
     this.container = container;
     this.onSelectPlanet = onSelectPlanet;
+    this.onActivatePlanet = onActivatePlanet;
     this.onReturn = onReturn;
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.FogExp2(0x050506, 0.018);
@@ -202,6 +216,10 @@ export class SolarAtlasScene {
     }
 
     this.currentQueueMode = nextQueueMode;
+  }
+
+  get rendererElement(): HTMLCanvasElement {
+    return this.renderer.domElement;
   }
 
   dispose(): void {
@@ -349,7 +367,7 @@ export class SolarAtlasScene {
       );
       surface.renderOrder = 10;
       this.applyCinematicSurfaceShader(surface.material, planet);
-      this.loadPlanetTextures(planet, surface.material);
+      this.loadPlanetTextures(planet, surface.material, false);
       group.add(surface);
 
       const pickVolume = new THREE.Mesh(
@@ -402,7 +420,8 @@ export class SolarAtlasScene {
         basePosition: group.position.clone(),
         baseScale: 1,
         floatPhase: plan.floatPhase,
-        rotationSpeed: plan.rotationSpeed
+        rotationSpeed: plan.rotationSpeed,
+        highQualityRequested: false
       });
     }
   }
@@ -650,11 +669,20 @@ gl_FragColor.rgb *= atlasShade;
     return ring;
   }
 
-  private loadPlanetTextures(planet: PlanetRecord, material: THREE.MeshStandardMaterial): void {
-    this.loadTexture(planet.textures.color, THREE.SRGBColorSpace, (texture) => {
+  private loadPlanetTextures(
+    planet: PlanetRecord,
+    material: THREE.MeshStandardMaterial,
+    highQuality: boolean
+  ): void {
+    const colorTexture = highQuality ? planet.textures.color : planet.textures.previewColor;
+    this.loadTexture(colorTexture, THREE.SRGBColorSpace, (texture) => {
       material.map = texture;
       material.needsUpdate = true;
     });
+
+    if (!highQuality) {
+      return;
+    }
 
     this.loadTexture(planet.textures.normal, THREE.NoColorSpace, (texture) => {
       material.normalMap = texture;
@@ -684,26 +712,51 @@ gl_FragColor.rgb *= atlasShade;
       return;
     }
 
-    void fetch(url, { cache: 'force-cache', mode: 'cors' })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Texture request failed: ${response.status}`);
-        }
+    this.textureQueue.push(async () => {
+      const response = await fetch(url, { cache: 'force-cache' });
+      if (!response.ok) {
+        throw new Error(`Texture request failed: ${response.status}`);
+      }
 
-        return response.blob();
-      })
-      .then((blob) => createImageBitmap(blob))
-      .then((bitmap) => {
-        const texture = new THREE.Texture(bitmap);
-        texture.colorSpace = colorSpace;
-        texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
-        texture.needsUpdate = true;
-        onLoad(texture);
-      })
-      .catch(() => undefined);
+      const bitmap = await createImageBitmap(await response.blob());
+      const texture = new THREE.Texture(bitmap);
+      texture.colorSpace = colorSpace;
+      texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+      texture.needsUpdate = true;
+      onLoad(texture);
+    });
+    this.processTextureQueue();
+  }
+
+  private processTextureQueue(): void {
+    while (this.activeTextureLoads < 3 && this.textureQueue.length > 0) {
+      const task = this.textureQueue.shift();
+      if (!task) {
+        return;
+      }
+
+      this.activeTextureLoads += 1;
+      void task()
+        .catch(() => undefined)
+        .finally(() => {
+          this.activeTextureLoads -= 1;
+          this.processTextureQueue();
+        });
+    }
+  }
+
+  private ensureHighQualityTextures(key: AtlasTargetKey): void {
+    const node = this.planetNodes.get(key);
+    if (!node || node.highQualityRequested) {
+      return;
+    }
+
+    node.highQualityRequested = true;
+    this.loadPlanetTextures(getPlanet(key), node.surface.material as THREE.MeshStandardMaterial, true);
   }
 
   private focusPlanet(key: AtlasTargetKey): void {
+    this.ensureHighQualityTextures(key);
     this.transitionTimeline?.kill();
     this.detailGroup.visible = true;
 
@@ -845,8 +898,8 @@ gl_FragColor.rgb *= atlasShade;
       return node.basePosition.clone();
     }
 
-    const relativeIndex = getPlanet(node.key).order - 4;
-    return new THREE.Vector3(0, -relativeIndex * 1.08, -Math.abs(relativeIndex) * 0.28);
+    const position = this.portraitOverviewLayout?.get(node.key);
+    return position ? new THREE.Vector3(position.x, position.y, position.z) : new THREE.Vector3();
   }
 
   private applyOverviewPose(): void {
@@ -863,7 +916,7 @@ gl_FragColor.rgb *= atlasShade;
 
       this.showNode(node);
       node.group.position.copy(this.getOverviewPosition(node));
-      node.group.scale.setScalar(node.baseScale);
+      node.group.scale.setScalar(this.portraitActive ? (this.portraitOverviewLayout?.scale ?? 1) : node.baseScale);
       this.applyNodeVisibility(node, 1);
     }
 
@@ -938,6 +991,7 @@ gl_FragColor.rgb *= atlasShade;
   }
 
   private arrangePlanetQueue(selectedKey: AtlasTargetKey, duration: number = renderTone.queue.transitionDuration): void {
+    this.ensureHighQualityTextures(selectedKey);
     const selectedPlanet = getPlanet(selectedKey);
     const hiddenQueue = selectedKey === 'pluto';
     this.transitionTimeline?.kill();
@@ -1260,6 +1314,14 @@ gl_FragColor.rgb *= atlasShade;
     if (this.portraitActive) {
       this.overviewCameraZ = 17.8;
       this.overviewCameraY = 0;
+      this.portraitOverviewLayout = createPortraitOverviewLayout(planets, width, height, {
+        topInsetPx: 64,
+        bottomInsetPx: 62,
+        cameraZ: this.overviewCameraZ,
+        fieldOfViewDegrees: this.camera.fov
+      });
+    } else {
+      this.portraitOverviewLayout = null;
     }
 
     this.camera.aspect = width / height;
@@ -1327,11 +1389,17 @@ gl_FragColor.rgb *= atlasShade;
     const planetKey = this.queueActive ? this.findQueuePlanetAtPointer(event, bounds) : raycastPlanetKey;
 
     if (planetKey) {
+      if (this.queueActive && this.queueDoubleActivation.register(planetKey, event.timeStamp)) {
+        this.onActivatePlanet(planetKey);
+        return;
+      }
+
       this.onSelectPlanet(planetKey);
       return;
     }
 
     if (this.queueActive && !planetKey) {
+      this.queueDoubleActivation.reset();
       this.onReturn();
     }
   };
@@ -1349,7 +1417,10 @@ gl_FragColor.rgb *= atlasShade;
       if (this.currentMode === 'overview') {
         const overviewPosition = this.getOverviewPosition(node);
         node.group.position.y = overviewPosition.y + Math.sin(elapsed * 0.58 + node.floatPhase) * 0.12;
-        node.group.position.x = overviewPosition.x + Math.sin(elapsed * 0.22 + node.floatPhase) * 0.04;
+        node.group.position.x = this.portraitActive
+          ? overviewPosition.x
+          : overviewPosition.x + Math.sin(elapsed * 0.22 + node.floatPhase) * 0.04;
+        node.group.position.z = overviewPosition.z;
       }
     }
 

@@ -15,6 +15,7 @@ export type AtlasMode = 'overview' | 'transition-in' | 'detail' | 'transition-ou
 
 export interface PlanetTextures {
   color: string;
+  previewColor?: string;
   normal?: string;
   roughness?: string;
   ao?: string;

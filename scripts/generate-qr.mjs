@@ -11,12 +11,12 @@ const { PNG } = require('C:/Users/23650/.cache/codex-runtimes/codex-primary-runt
 
 const targetUrl = process.argv[2] ?? 'https://future-ui-solar-system-atlas.vercel.app';
 const outputPath = path.resolve(process.argv[3] ?? 'artifacts/future-ui-solar-system-atlas-qr.png');
-const qr = new QRCode(-1, QRErrorCorrectLevel.H);
+const qr = new QRCode(-1, QRErrorCorrectLevel.M);
 qr.addData(targetUrl);
 qr.make();
 
-const quietZone = 4;
-const scale = 20;
+const quietZone = 6;
+const scale = 24;
 const moduleCount = qr.getModuleCount();
 const size = (moduleCount + quietZone * 2) * scale;
 const png = new PNG({ width: size, height: size });

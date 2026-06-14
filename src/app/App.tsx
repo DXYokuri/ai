@@ -38,6 +38,11 @@ export function App({ animationDurationMs = 2100 }: AppProps): ReactElement {
     setAtlasState((state) => beginReturn(state));
   }, []);
 
+  const handleActivatePlanet = useCallback((planetKey: AtlasTargetKey) => {
+    setQueueMode(false);
+    setAtlasState((state) => selectPlanet(state, planetKey));
+  }, []);
+
   const handleToggleQueueMode = useCallback(() => {
     const nextActive = !queueMode;
 
@@ -97,6 +102,7 @@ export function App({ animationDurationMs = 2100 }: AppProps): ReactElement {
           mode={atlasState.mode}
           selectedPlanet={atlasState.selectedPlanet}
           onSelectPlanet={handleSelectPlanet}
+          onActivatePlanet={handleActivatePlanet}
           onReturn={handleReturn}
         />
 

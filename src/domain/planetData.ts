@@ -1,7 +1,7 @@
 import type { AtlasTargetKey, PlanetKey, PlanetRecord } from './types';
 
-const PLANET_TEXTURE = 'https://unpkg.com/artastra@1.0.8/textures';
-const THREE_PLANETS = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets';
+const PLANET_TEXTURE = './textures/planets';
+const PLANET_PREVIEW = './textures/planets/preview';
 
 export const PLANET_ORDER = [
   'sun',
@@ -28,7 +28,8 @@ export const planets: MainPlanetRecord[] = [
     color: '#f3f0dd',
     accent: '#fff4c2',
     textures: {
-      color: `${PLANET_TEXTURE}/sun.jpg`
+      color: `${PLANET_TEXTURE}/sun.jpg`,
+      previewColor: `${PLANET_PREVIEW}/sun.jpg`
     },
     stats: {
       diameter: '1,392,700 km',
@@ -54,7 +55,8 @@ export const planets: MainPlanetRecord[] = [
     color: '#a8a8a0',
     accent: '#d8d6cf',
     textures: {
-      color: `${PLANET_TEXTURE}/2k_mercury.jpg`
+      color: `${PLANET_TEXTURE}/mercury.jpg`,
+      previewColor: `${PLANET_PREVIEW}/mercury.jpg`
     },
     stats: {
       diameter: '4,879 km',
@@ -80,8 +82,9 @@ export const planets: MainPlanetRecord[] = [
     color: '#c2a46c',
     accent: '#f3d38d',
     textures: {
-      color: `${PLANET_TEXTURE}/8k_venus_surface.jpg`,
-      roughness: `${PLANET_TEXTURE}/4k_venus_atmosphere.jpg`
+      color: `${PLANET_TEXTURE}/venus-surface.jpg`,
+      previewColor: `${PLANET_PREVIEW}/venus-surface.jpg`,
+      roughness: `${PLANET_TEXTURE}/venus-atmosphere.jpg`
     },
     stats: {
       diameter: '12,104 km',
@@ -107,11 +110,12 @@ export const planets: MainPlanetRecord[] = [
     color: '#8fa8b8',
     accent: '#d7f4ff',
     textures: {
-      color: `${THREE_PLANETS}/earth_atmos_2048.jpg`,
-      normal: `${THREE_PLANETS}/earth_normal_2048.jpg`,
-      roughness: `${THREE_PLANETS}/earth_specular_2048.jpg`,
-      clouds: `${THREE_PLANETS}/earth_clouds_1024.png`,
-      night: `${THREE_PLANETS}/earth_lights_2048.png`
+      color: `${PLANET_TEXTURE}/earth-color.jpg`,
+      previewColor: `${PLANET_PREVIEW}/earth-color.jpg`,
+      normal: `${PLANET_TEXTURE}/earth-normal.jpg`,
+      roughness: `${PLANET_TEXTURE}/earth-specular.jpg`,
+      clouds: `${PLANET_TEXTURE}/earth-clouds.png`,
+      night: `${PLANET_TEXTURE}/earth-night.png`
     },
     stats: {
       diameter: '12,742 km',
@@ -137,7 +141,8 @@ export const planets: MainPlanetRecord[] = [
     color: '#b2653e',
     accent: '#ffb08a',
     textures: {
-      color: `${PLANET_TEXTURE}/mars.jpg`
+      color: `${PLANET_TEXTURE}/mars.jpg`,
+      previewColor: `${PLANET_PREVIEW}/mars.jpg`
     },
     stats: {
       diameter: '6,779 km',
@@ -163,7 +168,8 @@ export const planets: MainPlanetRecord[] = [
     color: '#b6a28b',
     accent: '#f4dcc0',
     textures: {
-      color: `${PLANET_TEXTURE}/jupiter.jpg`
+      color: `${PLANET_TEXTURE}/jupiter.jpg`,
+      previewColor: `${PLANET_PREVIEW}/jupiter.jpg`
     },
     stats: {
       diameter: '139,820 km',
@@ -189,8 +195,9 @@ export const planets: MainPlanetRecord[] = [
     color: '#c6b28d',
     accent: '#fff1c7',
     textures: {
-      color: `${PLANET_TEXTURE}/8k_saturn.jpg`,
-      ring: `${PLANET_TEXTURE}/saturn_rings_black2.png`
+      color: `${PLANET_TEXTURE}/saturn.jpg`,
+      previewColor: `${PLANET_PREVIEW}/saturn.jpg`,
+      ring: `${PLANET_TEXTURE}/saturn-ring.png`
     },
     stats: {
       diameter: '116,460 km',
@@ -216,7 +223,8 @@ export const planets: MainPlanetRecord[] = [
     color: '#9ec7ca',
     accent: '#dcffff',
     textures: {
-      color: `${PLANET_TEXTURE}/2k_uranus.jpg`
+      color: `${PLANET_TEXTURE}/uranus.jpg`,
+      previewColor: `${PLANET_PREVIEW}/uranus.jpg`
     },
     stats: {
       diameter: '50,724 km',
@@ -242,7 +250,8 @@ export const planets: MainPlanetRecord[] = [
     color: '#536aa9',
     accent: '#b9c8ff',
     textures: {
-      color: `${PLANET_TEXTURE}/2k_neptune.jpg`
+      color: `${PLANET_TEXTURE}/neptune.jpg`,
+      previewColor: `${PLANET_PREVIEW}/neptune.jpg`
     },
     stats: {
       diameter: '49,244 km',

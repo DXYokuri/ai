@@ -24,11 +24,19 @@ describe('planetData', () => {
       expect(planet.label).toMatch(/^[A-Z][A-Z ]+$/);
       expect(planet.visualRadius).toBeGreaterThan(0);
       expect(planet.detailScale).toBeGreaterThanOrEqual(1);
-      expect(planet.textures.color).toMatch(/^https:\/\//);
+      expect(planet.textures.color).toMatch(/^\.\/textures\/planets\//);
       expect(Object.keys(planet.stats).length).toBeGreaterThanOrEqual(4);
       expect(Object.keys(planet.environment).length).toBeGreaterThanOrEqual(4);
       expect(planet.mission.length).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it('does not depend on third-party runtime texture hosts', () => {
+    const textureUrls = planets.flatMap((planet) => Object.values(planet.textures).filter(Boolean));
+
+    expect(textureUrls.every((url) => url?.startsWith('./textures/'))).toBe(true);
+    expect(textureUrls.some((url) => url?.includes('unpkg.com'))).toBe(false);
+    expect(textureUrls.some((url) => url?.includes('raw.githubusercontent.com'))).toBe(false);
   });
 
   it('includes Earth specialty maps and Saturn ring texture', () => {
